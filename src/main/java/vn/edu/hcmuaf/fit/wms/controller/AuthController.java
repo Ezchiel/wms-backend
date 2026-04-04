@@ -14,7 +14,6 @@ import vn.edu.hcmuaf.fit.wms.security.JwtService;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class AuthController {
 
