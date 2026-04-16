@@ -31,6 +31,18 @@ public class ApiResponse<T> {
         private Long totalElements;
     }
 
+    public static <T> ApiResponse<T> success(String message) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .message(message)
+                .data(null)
+                .meta(Meta.builder()
+                        .timestamp(Instant.now().toString())
+                        .version("v1")
+                        .build())
+                .build();
+    }
+
     public static <T> ApiResponse<T> success(String message, T data) {
         return ApiResponse.<T>builder()
                 .success(true)
