@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.entity.User;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 import vn.edu.hcmuaf.fit.wms.repository.UserRepository;
 
 import java.util.Collections;

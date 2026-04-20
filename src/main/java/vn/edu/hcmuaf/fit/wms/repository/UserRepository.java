@@ -6,9 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
 import vn.edu.hcmuaf.fit.wms.entity.User;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 
 import java.util.Optional;
 

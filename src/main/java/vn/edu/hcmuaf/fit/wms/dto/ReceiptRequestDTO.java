@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.wms.dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -19,5 +20,8 @@ public class ReceiptRequestDTO {
         private Long locationId;
         private Integer quantity;
         private Double unitPrice;
+        private String batchNo;
+        private LocalDate expiryDate;
+        private String serialNumber;
     }
 }

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -35,5 +36,8 @@ public class ReceiptResponseDTO {
         private BigDecimal unitPrice;
         private String locationName;
         private BigDecimal totalPrice;
+        private String batchNo;
+        private LocalDate expiryDate;
+        private String serialNumber;
     }
 }

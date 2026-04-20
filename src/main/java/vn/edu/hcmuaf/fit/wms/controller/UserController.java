@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 import vn.edu.hcmuaf.fit.wms.service.UserService;
 
 import java.util.List;

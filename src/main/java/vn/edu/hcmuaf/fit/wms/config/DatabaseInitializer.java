@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
 import vn.edu.hcmuaf.fit.wms.entity.User;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 import vn.edu.hcmuaf.fit.wms.repository.UserRepository;
 
 @Component

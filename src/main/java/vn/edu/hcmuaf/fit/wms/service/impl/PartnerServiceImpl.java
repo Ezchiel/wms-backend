@@ -3,7 +3,7 @@ package vn.edu.hcmuaf.fit.wms.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.entity.Partner;
-import vn.edu.hcmuaf.fit.wms.entity.PartnerType;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PartnerType;
 import vn.edu.hcmuaf.fit.wms.repository.PartnerRepository;
 import vn.edu.hcmuaf.fit.wms.service.PartnerService;
 

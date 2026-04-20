@@ -3,7 +3,7 @@ package vn.edu.hcmuaf.fit.wms.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.hcmuaf.fit.wms.entity.Partner;
-import vn.edu.hcmuaf.fit.wms.entity.PartnerType;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PartnerType;
 
 import java.util.List;
 

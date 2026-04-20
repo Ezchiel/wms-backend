@@ -10,7 +10,6 @@ import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.wms.service.ProductService;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
         product.setProductName(dto.getProductName());
         product.setUnit(dto.getUnit());
         product.setDescription(dto.getDescription());
+        product.setMinStockLevel(dto.getMinStockLevel());
         product.setProductGroup(group);
 
         return productRepository.save(product);
@@ -55,6 +55,7 @@ public class ProductServiceImpl implements ProductService {
         product.setProductName(dto.getProductName());
         product.setUnit(dto.getUnit());
         product.setDescription(dto.getDescription());
+        product.setMinStockLevel(dto.getMinStockLevel());
 
         ProductGroup group = productGroupRepository.findById(dto.getGroupId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Nhóm sản phẩm với ID: " + dto.getGroupId()));
@@ -64,6 +65,7 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.save(product);
     }
 
+    @Override
     public void deleteProduct(Long id) {
         productRepository.deleteById(id);
     }

@@ -4,8 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 
 @Getter
 @Setter

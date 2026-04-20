@@ -1,7 +1,7 @@
 package vn.edu.hcmuaf.fit.wms.dto;
 
 import lombok.*;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 
 @Getter
 @Setter

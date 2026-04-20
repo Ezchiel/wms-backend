@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
 import vn.edu.hcmuaf.fit.wms.entity.Partner;
-import vn.edu.hcmuaf.fit.wms.entity.PartnerType;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PartnerType;
 import vn.edu.hcmuaf.fit.wms.service.PartnerService;
 
 import java.util.List;

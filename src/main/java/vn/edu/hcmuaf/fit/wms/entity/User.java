@@ -2,6 +2,8 @@ package vn.edu.hcmuaf.fit.wms.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 
 @Entity
 @Table(name = "users")

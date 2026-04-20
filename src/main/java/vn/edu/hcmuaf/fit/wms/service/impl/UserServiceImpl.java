@@ -11,9 +11,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
 import vn.edu.hcmuaf.fit.wms.entity.User;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 import vn.edu.hcmuaf.fit.wms.repository.UserRepository;
 import vn.edu.hcmuaf.fit.wms.service.UserService;
 

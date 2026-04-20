@@ -1,0 +1,40 @@
+package vn.edu.hcmuaf.fit.wms.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Table(name = "inventory_issues")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class InventoryIssue {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "issue_code", unique = true, nullable = false)
+    private String issueCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Partner customer;
+
+    @Column(name = "issue_date")
+    private LocalDateTime issueDate;
+
+    @Enumerated(EnumType.STRING)
+    private ReceiptStatus status;
+
+    private String notes;
+
+    @OneToMany(mappedBy = "inventoryIssue", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<InventoryIssueDetail> details;
+}

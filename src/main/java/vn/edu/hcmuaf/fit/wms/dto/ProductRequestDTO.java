@@ -11,4 +11,5 @@ public class ProductRequestDTO {
     private String unit;
     private Long groupId;
     private String description;
+    private Integer minStockLevel;
 }

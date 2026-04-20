@@ -1,7 +1,7 @@
 package vn.edu.hcmuaf.fit.wms.service;
 
 import vn.edu.hcmuaf.fit.wms.entity.Partner;
-import vn.edu.hcmuaf.fit.wms.entity.PartnerType;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PartnerType;
 
 import java.util.List;
 

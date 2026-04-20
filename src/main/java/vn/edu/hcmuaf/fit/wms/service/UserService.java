@@ -3,11 +3,8 @@ package vn.edu.hcmuaf.fit.wms.service;
 import org.springframework.data.domain.Page;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
-import vn.edu.hcmuaf.fit.wms.entity.Role;
-import vn.edu.hcmuaf.fit.wms.entity.User;
-import vn.edu.hcmuaf.fit.wms.entity.UserStatus;
-
-import java.util.List;
+import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
+import vn.edu.hcmuaf.fit.wms.entity.enums.UserStatus;
 
 public interface UserService {
     Page<UserResponseDTO> getAllUsers(String keyword, UserStatus status, Role role,
