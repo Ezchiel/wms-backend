@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.dto.InventoryStockRequestDTO;
+import vn.edu.hcmuaf.fit.wms.dto.InventoryStockResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryStock;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryTransaction;
 import vn.edu.hcmuaf.fit.wms.entity.Product;
@@ -18,6 +19,7 @@ import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -43,7 +45,9 @@ public class InventoryStockServiceImpl implements InventoryStockService {
                     .product(product)
                     .location(location)
                     .quantity(request.getQuantity())
+                    .batchNo(request.getBatchNo())
                     .serialNumber(request.getSerialNumber())
+                    .expiryDate(request.getExpiryDate())
                     .build();
             stockRepository.save(newStock);
 
@@ -151,6 +155,27 @@ public class InventoryStockServiceImpl implements InventoryStockService {
         return existingStockOpt.getQuantity();
     }
 
+    @Override
+    public List<InventoryStockResponseDTO> getAllStocks() {
+        return stockRepository.findAll().stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public InventoryStockResponseDTO getStockById(Long id) {
+        InventoryStock stock = stockRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tồn kho với ID: " + id));
+        return mapToResponseDTO(stock);
+    }
+
+    @Override
+    public List<InventoryStockResponseDTO> getStocksByProductId(Long productId) {
+        return stockRepository.findByProductId(productId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     private void logTransaction(Long productId, Long locationId, TransactionType type, String refCode, Integer qty) {
         Product productRef = new Product();
         productRef.setId(productId);
@@ -167,5 +192,18 @@ public class InventoryStockServiceImpl implements InventoryStockService {
                 .createdAt(LocalDateTime.now())
                 .build();
         transactionRepository.save(transaction);
+    }
+
+    private InventoryStockResponseDTO mapToResponseDTO(InventoryStock stock) {
+        return InventoryStockResponseDTO.builder()
+                .id(stock.getId())
+                .productId(stock.getProduct().getId())
+                .productName(stock.getProduct().getProductName())
+                .locationId(stock.getLocation().getId())
+                .quantity(stock.getQuantity())
+                .batchNo(stock.getBatchNo())
+                .expiryDate(stock.getExpiryDate())
+                .serialNumber(stock.getSerialNumber())
+                .build();
     }
 }

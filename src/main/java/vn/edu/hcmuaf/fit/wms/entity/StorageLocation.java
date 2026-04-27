@@ -31,4 +31,7 @@ public class StorageLocation {
 
     @Column(name = "is_full")
     private boolean isFull = false;
+
+    @Column(name = "path_sequence")
+    private Integer pathSequence;
 }

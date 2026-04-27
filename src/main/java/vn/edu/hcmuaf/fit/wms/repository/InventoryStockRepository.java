@@ -23,4 +23,7 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStock, 
 
     @Query("SELECT s.location.zone, SUM(s.quantity) FROM InventoryStock s GROUP BY s.location.zone")
     List<Object[]> countTotalStockByZone();
+
+    List<InventoryStock> findByProductId(Long productId);
+    List<InventoryStock> findByLocationId(Long locationId);
 }

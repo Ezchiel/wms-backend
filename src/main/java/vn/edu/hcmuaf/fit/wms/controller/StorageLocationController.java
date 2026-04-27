@@ -17,10 +17,30 @@ public class StorageLocationController {
     private final StorageLocationService locationService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<StorageLocation>>> getAllLocations() {
+    public ResponseEntity<ApiResponse<List<StorageLocation>>> getAllLocations(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách vị trí kho thành công",
-                locationService.getAllLocations()
+                locationService.getAllLocations(keyword, page, size, sortBy, sortDir)
+        ));
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<ApiResponse<List<StorageLocation>>> getAvailableLocations(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách vị trí kho còn trống thành công",
+                locationService.getAvailableLocations(keyword, page, size, sortBy, sortDir)
         ));
     }
 
@@ -56,10 +76,17 @@ public class StorageLocationController {
         ));
     }
 
-    // Xóa vị trí
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteLocation(@PathVariable Long id) {
         locationService.deleteLocation(id);
         return ResponseEntity.ok(ApiResponse.success("Xoá vị trí kho thành công"));
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<ApiResponse<List<StorageLocation>>> createMultipleLocations(@RequestBody List<StorageLocation> locations) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tạo danh sách vị trí kho thành công",
+                locationService.createMultipleLocations(locations)
+        ));
     }
 }

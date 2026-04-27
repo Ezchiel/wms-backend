@@ -3,15 +3,12 @@ package vn.edu.hcmuaf.fit.wms.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import vn.edu.hcmuaf.fit.wms.dto.InventoryStockRequestDTO;
-import vn.edu.hcmuaf.fit.wms.dto.ReceiptRequestDTO;
-import vn.edu.hcmuaf.fit.wms.dto.ReceiptResponseDTO;
+import org.springframework.transaction.annotation.Transactional;
+import vn.edu.hcmuaf.fit.wms.dto.*;
 import vn.edu.hcmuaf.fit.wms.entity.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LpnStatus;
 import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
-import vn.edu.hcmuaf.fit.wms.repository.InventoryReceiptRepository;
-import vn.edu.hcmuaf.fit.wms.repository.PartnerRepository;
-import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
-import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
+import vn.edu.hcmuaf.fit.wms.repository.*;
 import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 
@@ -31,8 +28,11 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final PartnerRepository partnerRepository;
     private final ProductRepository productRepository;
     private final StorageLocationRepository locationRepository;
+    private final LpnRepository lpnRepository;
+    private final InventoryReceiptDetailRepository detailRepository;
 
     @Override
+    @Transactional
     public ReceiptResponseDTO createReceipt(ReceiptRequestDTO requestDTO) {
         // check supplier
         Partner supplier = partnerRepository.findById(requestDTO.getSupplierId())
@@ -85,6 +85,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     }
 
     @Override
+    @Transactional
     public ReceiptResponseDTO confirmReceipt(Long receiptId) {
         // find receipt
         InventoryReceipt receipt = receiptRepository.findById(receiptId)
@@ -113,6 +114,54 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
         InventoryReceipt savedReceipt = receiptRepository.save(receipt);
         return mapToDTO(savedReceipt);
+    }
+
+    @Override
+    @Transactional
+    public CountAndLabelResponseDTO countAndLabel(Long receiptId, Long detailId, CountAndLabelRequestDTO request) {
+        InventoryReceiptDetail detail = detailRepository.findById(detailId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy chi tiết phiếu nhập"));
+
+        if (!detail.getInventoryReceipt().getId().equals(receiptId)) {
+            throw new RuntimeException("Chi tiết không thuộc phiếu nhập này");
+        }
+
+        // Validate total
+        int newCountedTotal = (detail.getCountedQuantity() == null ? 0 : detail.getCountedQuantity()) + request.getCountedQuantity();
+        if (newCountedTotal > detail.getQuantity()) {
+            throw new RuntimeException("Số lượng đếm vượt quá số lượng dự kiến của phiếu!");
+        }
+
+        // Generate LPN (Example: LPN-HCM-20240426-0001)
+        String lpnCode = generateLpnCode();
+
+        // Save LPN
+        Lpn lpn = Lpn.builder()
+                .lpnCode(lpnCode)
+                .receipt(detail.getInventoryReceipt())
+                .receiptDetail(detail)
+                .product(detail.getProduct())
+                .quantity(request.getCountedQuantity())
+                .batchNo(request.getBatchNo() != null ? request.getBatchNo() : detail.getBatchNo())
+                .expiryDate(request.getExpiryDate() != null ? request.getExpiryDate() : detail.getExpiryDate())
+                .status(LpnStatus.GENERATED)
+                .createdAt(LocalDateTime.now())
+                .build();
+        lpnRepository.save(lpn);
+
+        // Update quantity into Receipt Detail
+        detail.setCountedQuantity(newCountedTotal);
+        detailRepository.save(detail);
+
+        // Generate ZPL for Bluetooth printer
+        String zpl = generateZplCommand(lpnCode, detail.getProduct().getProductName(), request.getCountedQuantity(), lpn.getBatchNo());
+
+        return CountAndLabelResponseDTO.builder()
+                .lpnCode(lpnCode)
+                .productName(detail.getProduct().getProductName())
+                .quantity(request.getCountedQuantity())
+                .zplCommand(zpl)
+                .build();
     }
 
     private ReceiptResponseDTO mapToDTO(InventoryReceipt entity) {
@@ -158,5 +207,27 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                         .collect(Collectors.toList()))
                 .totalAmount(totalAmount)
                 .build();
+    }
+
+    private String generateLpnCode() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
+
+        long countToday = lpnRepository.countByCreatedAtBetween(startOfDay, endOfDay) + 1;
+        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd"));
+
+        return String.format("LPN-%s-%04d", dateStr, countToday);
+    }
+
+    private String generateZplCommand(String lpnCode, String productName, Integer qty, String batch) {
+        String cleanName = productName.length() > 20 ? productName.substring(0, 20) : productName;
+        String batchStr = batch != null ? batch : "N/A";
+
+        return "^XA\n" +
+                "^FO50,50^A0N,30,30^FDSP: " + cleanName + "^FS\n" +
+                "^FO50,100^A0N,25,25^FDSLK: " + qty + " - Lo: " + batchStr + "^FS\n" +
+                "^FO50,150^BY3^BCN,100,Y,N,N^FD" + lpnCode + "^FS\n" +
+                "^XZ";
     }
 }

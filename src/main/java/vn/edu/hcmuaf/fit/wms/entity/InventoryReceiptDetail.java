@@ -34,6 +34,10 @@ public class InventoryReceiptDetail {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "counted_quantity", nullable = false)
+    @Builder.Default
+    private Integer countedQuantity = 0;
+
     @Column(name = "unit_price")
     private BigDecimal unitPrice;
 

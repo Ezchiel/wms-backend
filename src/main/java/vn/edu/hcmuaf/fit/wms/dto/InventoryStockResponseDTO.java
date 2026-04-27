@@ -1,16 +1,17 @@
 package vn.edu.hcmuaf.fit.wms.dto;
 
-import lombok.*;
-
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
 import java.time.LocalDate;
 
 @Getter
 @Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class InventoryStockRequestDTO {
+public class InventoryStockResponseDTO {
+    private Long id;
     private Long productId;
+    private String productName;
     private Long locationId;
     private Integer quantity;
     private String batchNo;
