@@ -1,6 +1,10 @@
 package vn.edu.hcmuaf.fit.wms.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.entity.ProductGroup;
 import vn.edu.hcmuaf.fit.wms.repository.ProductGroupRepository;
@@ -14,6 +18,17 @@ import java.util.Optional;
 public class ProductGroupServiceImpl implements ProductGroupService {
 
     private final ProductGroupRepository productGroupRepository;
+
+    @Override
+    public Page<ProductGroup> getAllProductGroups(String keyword, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        return productGroupRepository.searchProductGroups(keyword, pageable);
+    }
 
     @Override
     public List<ProductGroup> getAllProductGroups() {

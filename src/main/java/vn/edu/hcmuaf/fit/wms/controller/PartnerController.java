@@ -18,10 +18,17 @@ public class PartnerController {
     private final PartnerService partnerService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Partner>>> getAllPartners() {
+    public ResponseEntity<ApiResponse<List<Partner>>> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) PartnerType type,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách đối tác thành công",
-                partnerService.getAllPartners()
+                partnerService.getAllPartners(keyword, type, page, size, sortBy, sortDir)
         ));
     }
 

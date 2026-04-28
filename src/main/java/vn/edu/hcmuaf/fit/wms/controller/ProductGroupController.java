@@ -17,9 +17,23 @@ public class ProductGroupController {
     private final ProductGroupService productGroupService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ProductGroup>>> getAll() {
+    public ResponseEntity<ApiResponse<List<ProductGroup>>> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách nhóm sản phẩm thành công",
+                productGroupService.getAllProductGroups(keyword, page, size, sortBy, sortDir)
+        ));
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<ProductGroup>>> getAllWithoutPagination() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách tất cả nhóm sản phẩm thành công",
                 productGroupService.getAllProductGroups()
         ));
     }

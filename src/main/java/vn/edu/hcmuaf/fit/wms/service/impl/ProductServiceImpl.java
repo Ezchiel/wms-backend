@@ -1,6 +1,10 @@
 package vn.edu.hcmuaf.fit.wms.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import vn.edu.hcmuaf.fit.wms.dto.ProductRequestDTO;
 import vn.edu.hcmuaf.fit.wms.entity.Product;
@@ -9,8 +13,6 @@ import vn.edu.hcmuaf.fit.wms.repository.ProductGroupRepository;
 import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.wms.service.ProductService;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
@@ -18,8 +20,14 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final ProductGroupRepository productGroupRepository;
 
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public Page<Product> getAllProducts(String keyword, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        return productRepository.searchProducts(keyword, pageable);
     }
 
     public Product getProductById(Long id) {

@@ -1,13 +1,11 @@
 package vn.edu.hcmuaf.fit.wms.service;
 
+import org.springframework.data.domain.Page;
 import vn.edu.hcmuaf.fit.wms.dto.ProductRequestDTO;
 import vn.edu.hcmuaf.fit.wms.entity.Product;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface ProductService {
-    List<Product> getAllProducts();
+    Page<Product> getAllProducts(String keyword, int page, int size, String sortBy, String sortDir);
     Product getProductById(Long id);
     Product createProduct(ProductRequestDTO dto);
     Product updateProduct(Long id, ProductRequestDTO dto);

@@ -18,10 +18,16 @@ public class ProductController {
     private final ProductService service;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Product>>> getAll() {
+    public ResponseEntity<ApiResponse<List<Product>>> getAll(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách sản phẩm thành công",
-                service.getAllProducts()
+                service.getAllProducts(keyword, page, size, sortBy, sortDir)
         ));
     }
 
