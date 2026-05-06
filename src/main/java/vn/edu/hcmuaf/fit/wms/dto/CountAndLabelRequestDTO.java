@@ -10,5 +10,6 @@ import java.time.LocalDate;
 public class CountAndLabelRequestDTO {
     private Integer countedQuantity;
     private String batchNo;
+    private String serialNumber;
     private LocalDate expiryDate;
 }

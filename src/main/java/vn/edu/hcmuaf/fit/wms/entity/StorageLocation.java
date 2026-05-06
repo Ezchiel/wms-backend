@@ -2,6 +2,7 @@ package vn.edu.hcmuaf.fit.wms.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 
 @Entity
 @Table(name = "storage_locations")
@@ -34,4 +35,8 @@ public class StorageLocation {
 
     @Column(name = "path_sequence")
     private Integer pathSequence;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "location_type", nullable = false)
+    private LocationType locationType = LocationType.STORAGE;
 }

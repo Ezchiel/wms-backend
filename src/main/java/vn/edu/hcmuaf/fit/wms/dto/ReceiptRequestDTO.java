@@ -17,7 +17,6 @@ public class ReceiptRequestDTO {
     @Setter
     public static class ReceiptDetailDTO {
         private Long productId;
-        private Long locationId;
         private Integer quantity;
         private Double unitPrice;
         private String batchNo;

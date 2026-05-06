@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface PartnerService {
     Page<Partner> getAllPartners(String keyword, PartnerType type, int page, int size, String sortBy, String sortDir);
+    List<Partner> getAllPartners();
     List<Partner> getPartnersByType(PartnerType type);
     Partner getPartnerById(Long id);
     Partner createPartner(Partner partner);

@@ -46,7 +46,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                 .issueCode("PXK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .customer(customer)
                 .issueDate(LocalDateTime.now())
-                .status(ReceiptStatus.PENDING)
+                .status(ReceiptStatus.EXPECTED)
                 .notes(requestDTO.getNotes())
                 .build();
 
@@ -76,7 +76,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         InventoryIssue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
-        if (issue.getStatus() != ReceiptStatus.PENDING) {
+        if (issue.getStatus() != ReceiptStatus.PUTAWAY_PENDING) {
             throw new RuntimeException("Chỉ có thể xác nhận phiếu đang ở trạng thái PENDING!");
         }
 

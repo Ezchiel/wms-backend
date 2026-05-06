@@ -13,6 +13,8 @@ import vn.edu.hcmuaf.fit.wms.repository.ProductGroupRepository;
 import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.wms.service.ProductService;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
@@ -28,6 +30,11 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
         return productRepository.searchProducts(keyword, pageable);
+    }
+
+    @Override
+    public List<Product> getAllProducts() {
+        return productRepository.findAll();
     }
 
     public Product getProductById(Long id) {

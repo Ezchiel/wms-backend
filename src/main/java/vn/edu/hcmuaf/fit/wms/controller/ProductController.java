@@ -31,6 +31,14 @@ public class ProductController {
         ));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<Product>>> getAllWithoutPagination() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách tất cả sản phẩm thành công",
+                service.getAllProducts()
+        ));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Product>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(

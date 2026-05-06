@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.wms.dto.*;
 import vn.edu.hcmuaf.fit.wms.entity.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LpnStatus;
 import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 import vn.edu.hcmuaf.fit.wms.repository.*;
@@ -28,6 +29,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final PartnerRepository partnerRepository;
     private final ProductRepository productRepository;
     private final StorageLocationRepository locationRepository;
+    private final InventoryStockRepository stockRepository;
     private final LpnRepository lpnRepository;
     private final InventoryReceiptDetailRepository detailRepository;
 
@@ -46,7 +48,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                 .receiptCode("PNK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
                 .supplier(supplier)
                 .receiptDate(LocalDateTime.now())
-                .status(ReceiptStatus.PENDING)
+                .status(ReceiptStatus.EXPECTED)
                 .notes(requestDTO.getNotes())
                 .createdBy(currentUser)
                 .createdAt(LocalDateTime.now())
@@ -56,13 +58,11 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         List<InventoryReceiptDetail> details = requestDTO.getDetails().stream().map(dto -> {
             Product product = productRepository.findById(dto.getProductId())
                     .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
-            StorageLocation location = locationRepository.findById(dto.getLocationId())
-                    .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
 
             return InventoryReceiptDetail.builder()
                     .inventoryReceipt(receipt)
                     .product(product)
-                    .location(location)
+                    .location(null)
                     .quantity(dto.getQuantity())
                     .unitPrice(BigDecimal.valueOf(dto.getUnitPrice()))
                     .batchNo(dto.getBatchNo())
@@ -92,25 +92,17 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập kho!"));
 
         // check status
-        if (receipt.getStatus() != ReceiptStatus.PENDING) {
-            throw new RuntimeException("Chỉ có thể xác nhận phiếu đang ở trạng thái PENDING!");
+        if (receipt.getStatus() != ReceiptStatus.EXPECTED) {
+            throw new RuntimeException("Chỉ có thể xác nhận phiếu đang ở trạng thái EXPECTED!");
         }
 
-        // review each detail on the invoice to add to inventory
-        for (InventoryReceiptDetail detail : receipt.getDetails()) {
-            stockService.addStock(InventoryStockRequestDTO.builder()
-                            .productId(detail.getProduct().getId())
-                            .locationId(detail.getLocation().getId())
-                            .quantity(detail.getQuantity())
-                            .batchNo(detail.getBatchNo())
-                            .expiryDate(detail.getExpiryDate())
-                            .serialNumber(detail.getSerialNumber())
-                    .build(),
-                    receipt.getReceiptCode()
-            );
+        // check details
+        if (receipt.getDetails() == null || receipt.getDetails().isEmpty()) {
+            throw new RuntimeException("Không thể xác nhận phiếu nhập không có danh sách sản phẩm chi tiết!");
         }
 
-        receipt.setStatus(ReceiptStatus.COMPLETED);
+        // preparing for Count & Label
+        receipt.setStatus(ReceiptStatus.RECEIVING);
 
         InventoryReceipt savedReceipt = receiptRepository.save(receipt);
         return mapToDTO(savedReceipt);
@@ -119,48 +111,92 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     @Override
     @Transactional
     public CountAndLabelResponseDTO countAndLabel(Long receiptId, Long detailId, CountAndLabelRequestDTO request) {
+
+        // get receipt information
+        InventoryReceipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
+
+        // check status
+        if (receipt.getStatus() == ReceiptStatus.COMPLETED) {
+            throw new RuntimeException("Phiếu nhập đã cất lên kệ hoàn tất, không thể kiểm đếm thêm");
+        }
+        if (receipt.getStatus() == ReceiptStatus.EXPECTED) {
+            throw new RuntimeException("Phiếu nhập cần được xác nhận bởi quản lý thì mới có thể kiểm đếm");
+        }
+
+        // get receipt detail information
         InventoryReceiptDetail detail = detailRepository.findById(detailId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi tiết phiếu nhập"));
 
-        if (!detail.getInventoryReceipt().getId().equals(receiptId)) {
-            throw new RuntimeException("Chi tiết không thuộc phiếu nhập này");
-        }
+        // Update counted quantity
+        Integer currentCounted = detail.getCountedQuantity() != null ? detail.getCountedQuantity() : 0;
+        detail.setCountedQuantity(currentCounted + request.getCountedQuantity());
+        detailRepository.save(detail);
 
-        // Validate total
-        int newCountedTotal = (detail.getCountedQuantity() == null ? 0 : detail.getCountedQuantity()) + request.getCountedQuantity();
-        if (newCountedTotal > detail.getQuantity()) {
-            throw new RuntimeException("Số lượng đếm vượt quá số lượng dự kiến của phiếu!");
-        }
-
-        // Generate LPN (Example: LPN-HCM-20240426-0001)
+        // Create new LPN
         String lpnCode = generateLpnCode();
-
-        // Save LPN
         Lpn lpn = Lpn.builder()
                 .lpnCode(lpnCode)
-                .receipt(detail.getInventoryReceipt())
+                .receipt(receipt)
                 .receiptDetail(detail)
                 .product(detail.getProduct())
                 .quantity(request.getCountedQuantity())
                 .batchNo(request.getBatchNo() != null ? request.getBatchNo() : detail.getBatchNo())
                 .expiryDate(request.getExpiryDate() != null ? request.getExpiryDate() : detail.getExpiryDate())
-                .status(LpnStatus.GENERATED)
-                .createdAt(LocalDateTime.now())
+                .status(LpnStatus.STAGED)
                 .build();
         lpnRepository.save(lpn);
 
-        // Update quantity into Receipt Detail
-        detail.setCountedQuantity(newCountedTotal);
-        detailRepository.save(detail);
+        // Create staging location
+        StorageLocation stagingLocation = locationRepository.findFirstByLocationType(LocationType.RECEIVING_DOCK)
+                .orElseThrow(() -> new RuntimeException("Lỗi: Chưa cấu hình vị trí Bãi nhận hàng (RECEIVING_DOCK) trong hệ thống!"));
 
-        // Generate ZPL for Bluetooth printer
-        String zpl = generateZplCommand(lpnCode, detail.getProduct().getProductName(), request.getCountedQuantity(), lpn.getBatchNo());
+        // Get Batch và Serial
+        String currentBatchNo = lpn.getBatchNo();
+        String currentSerialNumber = request.getSerialNumber();
+
+        // Check if this product is already available at the stage
+        InventoryStock stagingStock = stockRepository
+                .findByProductAndLocationAndBatchNoAndSerialNumber(detail.getProduct(), stagingLocation, currentBatchNo, currentSerialNumber)
+                .orElseGet(() -> InventoryStock.builder()
+                        .product(detail.getProduct())
+                        .location(stagingLocation)
+                        .quantity(0)
+                        .batchNo(currentBatchNo)
+                        .expiryDate(lpn.getExpiryDate())
+                        .serialNumber(currentSerialNumber)
+                        .build());
+
+        // check if there is a serial number
+        if (currentSerialNumber != null && !currentSerialNumber.isEmpty()) {
+            if (request.getCountedQuantity() != 1) {
+                throw new RuntimeException("Lỗi: Sản phẩm quản lý theo Serial chỉ được phép nhập số lượng 1 cho mỗi lần quét!");
+            }
+            if (stagingStock.getQuantity() > 0) {
+                throw new RuntimeException("Lỗi: Số Serial " + currentSerialNumber + " này đã được kiểm đếm hoặc đã tồn tại trong hệ thống!");
+            }
+        }
+
+        // Add the counted quantity to the stage
+        stagingStock.setQuantity(stagingStock.getQuantity() + request.getCountedQuantity());
+        stockRepository.save(stagingStock);
+
+        // Check that all the details on the receipt have been counted
+        boolean isFullyCounted = receipt.getDetails().stream()
+                .allMatch(d -> d.getCountedQuantity() != null && d.getCountedQuantity() >= d.getQuantity());
+
+        // preparing for Putaway
+        if (isFullyCounted) {
+            receipt.setStatus(ReceiptStatus.PUTAWAY_PENDING);
+            receiptRepository.save(receipt);
+        }
+
+        // Create label printing (ZPL)
+        String zplCommand = generateZplCommand(lpnCode, detail.getProduct().getProductName(), request.getCountedQuantity(), lpn.getBatchNo());
 
         return CountAndLabelResponseDTO.builder()
                 .lpnCode(lpnCode)
-                .productName(detail.getProduct().getProductName())
-                .quantity(request.getCountedQuantity())
-                .zplCommand(zpl)
+                .zplCommand(zplCommand)
                 .build();
     }
 

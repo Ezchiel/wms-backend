@@ -140,7 +140,7 @@ public class InventoryStockServiceImpl implements InventoryStockService {
         int variance = actualQuantity - currentQty;
 
         if (variance != 0) {
-            existingInventoryStock.setQuantity(variance);
+            existingInventoryStock.setQuantity(actualQuantity);
             stockRepository.save(existingInventoryStock);
 
             logTransaction(productId, locationId, TransactionType.ADJUST, referenceCode, variance);

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
 import vn.edu.hcmuaf.fit.wms.service.StorageLocationService;
 
@@ -24,23 +25,43 @@ public class StorageLocationServiceImpl implements StorageLocationService {
     private final StorageLocationRepository locationRepository;
 
     @Override
-    public Page<StorageLocation> getAllLocations(String keyword, int page, int size, String sortBy, String sortDir) {
+    public Page<StorageLocation> getAllLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-        return locationRepository.searchLocations(keyword, false, pageable);
+        // Convert type from String to Enum
+        LocationType locType = null;
+        if (type != null && !type.trim().isEmpty()) {
+            try {
+                locType = LocationType.valueOf(type.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Loại vị trí không hợp lệ");
+            }
+        }
+
+        return locationRepository.searchLocations(keyword, false, locType, pageable);
     }
 
     @Override
-    public Page<StorageLocation> getAvailableLocations(String keyword, int page, int size, String sortBy, String sortDir) {
+    public Page<StorageLocation> getAvailableLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-        return locationRepository.searchLocations(keyword, true, pageable);
+        // Convert type from String to Enum
+        LocationType locType = null;
+        if (type != null && !type.trim().isEmpty()) {
+            try {
+                locType = LocationType.valueOf(type.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Loại vị trí không hợp lệ");
+            }
+        }
+
+        return locationRepository.searchLocations(keyword, true, locType, pageable);
     }
 
     @Override
@@ -72,6 +93,10 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         existingLocation.setShelf(locationDetails.getShelf());
         existingLocation.setDescription(locationDetails.getDescription());
         existingLocation.setFull(locationDetails.isFull());
+
+        if(locationDetails.getLocationType() != null) {
+            existingLocation.setLocationType(locationDetails.getLocationType());
+        }
 
         if (!existingLocation.getBarcode().equals(locationDetails.getBarcode())
                 && locationRepository.existsByBarcode(locationDetails.getBarcode())) {

@@ -31,6 +31,9 @@ public class AuthController {
         // get user details
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(request.getUsername());
 
+        // get role
+        String role = userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
+
         // create token
         String token = jwtService.generateToken(userDetails);
 
@@ -38,6 +41,7 @@ public class AuthController {
         AuthResponseDTO data = AuthResponseDTO.builder()
                 .username(userDetails.getUsername())
                 .token(token)
+                .role(role)
                 .build();
 
         // create response

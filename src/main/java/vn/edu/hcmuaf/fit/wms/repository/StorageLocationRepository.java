@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,11 +16,11 @@ import java.util.Optional;
 public interface StorageLocationRepository extends JpaRepository<StorageLocation, Long> {
     Optional<StorageLocation> findByBarcode(String barcode);
     boolean existsByBarcode(String barcode);
-    Page<StorageLocation> findByIsFullFalse(Pageable pageable);
+    Optional<StorageLocation> findFirstByLocationType(LocationType locationType);
 
     @Query(value = "SELECT sl.* FROM storage_locations sl\n" +
                    "LEFT JOIN inventory_stocks st ON sl.id = st.location_id AND st.product_id = :productId\n" +
-                   "WHERE sl.is_full = false\n" +
+                   "WHERE sl.is_full = false AND sl.location_type = 'STORAGE'\n" +
                    "ORDER BY\n" +
                    "    (st.product_id IS NOT NULL) DESC,\n" +
                    "    sl.path_sequence ASC\n" +
@@ -33,8 +34,10 @@ public interface StorageLocationRepository extends JpaRepository<StorageLocation
             "                  OR LOWER(sl.rack) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
             "                  OR LOWER(sl.shelf) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
             "                  OR LOWER(sl.barcode) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "AND (:isAvailableOnly = false OR sl.isFull = false)")
+            "AND (:isAvailableOnly = false OR sl.isFull = false) " +
+            "AND (:locationType IS NULL OR sl.locationType = :locationType)")
     Page<StorageLocation> searchLocations(@Param("keyword") String keyword,
                                           @Param("isAvailableOnly") boolean isAvailableOnly,
+                                          @Param("locationType") LocationType locationType,
                                           Pageable pageable);
 }

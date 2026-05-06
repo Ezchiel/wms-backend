@@ -6,11 +6,11 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.wms.dto.InventoryStockRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.PutawayRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.PutawaySuggestionDTO;
-import vn.edu.hcmuaf.fit.wms.entity.Lpn;
-import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
+import vn.edu.hcmuaf.fit.wms.entity.*;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LpnStatus;
-import vn.edu.hcmuaf.fit.wms.repository.LpnRepository;
-import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
+import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
+import vn.edu.hcmuaf.fit.wms.repository.*;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 import vn.edu.hcmuaf.fit.wms.service.PutawayService;
 
@@ -20,7 +20,9 @@ public class PutawayServiceImpl implements PutawayService {
 
     private final LpnRepository lpnRepository;
     private final StorageLocationRepository storageLocationRepository;
-    private final InventoryStockService inventoryStockService;
+    private final InventoryStockRepository inventoryStockRepository;
+    private final InventoryReceiptDetailRepository inventoryReceiptDetailRepository;
+    private final InventoryReceiptRepository receiptRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,22 +53,58 @@ public class PutawayServiceImpl implements PutawayService {
             throw new RuntimeException("LPN này đã được cất vào kho trước đó!");
         }
 
-        StorageLocation location = storageLocationRepository.findById(request.getLocationId())
+        // Get target location
+        StorageLocation targetLocation = storageLocationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new RuntimeException("Vị trí cất hàng không hợp lệ"));
 
-        InventoryStockRequestDTO stockRequest = InventoryStockRequestDTO.builder()
-                .productId(lpn.getProduct().getId())
-                .locationId(location.getId())
-                .quantity(lpn.getQuantity())
-                .batchNo(lpn.getBatchNo())
-                .expiryDate(lpn.getExpiryDate())
-                .build();
+        // Get stage location
+        StorageLocation stagingLocation = storageLocationRepository.findFirstByLocationType(LocationType.RECEIVING_DOCK)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bãi nhận hàng tạm"));
 
-        inventoryStockService.addStock(stockRequest, lpn.getLpnCode());
+        // Subtract stock at the stage
+        InventoryStock stagingStock = inventoryStockRepository
+                .findByProductAndLocationAndBatchNoAndSerialNumber(lpn.getProduct(), stagingLocation, lpn.getBatchNo(), lpn.getSerialNumber())
+                .orElseThrow(() -> new RuntimeException("Lỗi logic: Không tìm thấy tồn kho tạm của sản phẩm này"));
 
+        if (stagingStock.getQuantity() < lpn.getQuantity()) {
+            throw new RuntimeException("Số lượng tồn kho tạm không đủ để thực hiện cất hàng");
+        }
+        stagingStock.setQuantity(stagingStock.getQuantity() - lpn.getQuantity());
+        inventoryStockRepository.save(stagingStock);
+
+        // Add stock
+        InventoryStock targetStock = inventoryStockRepository
+                .findByProductAndLocationAndBatchNoAndSerialNumber(lpn.getProduct(), targetLocation, lpn.getBatchNo(), lpn.getSerialNumber())
+                .orElse(InventoryStock.builder()
+                        .product(lpn.getProduct())
+                        .location(targetLocation)
+                        .quantity(0)
+                        .batchNo(lpn.getBatchNo())
+                        .expiryDate(lpn.getExpiryDate())
+                        .serialNumber(lpn.getSerialNumber())
+                        .build());
+
+        targetStock.setQuantity(targetStock.getQuantity() + lpn.getQuantity());
+        inventoryStockRepository.save(targetStock);
+
+        // Update LPN status
         lpn.setStatus(LpnStatus.STORED);
         lpnRepository.save(lpn);
 
-        // Logic for location isFull
+        // Update receipt status
+        InventoryReceipt receipt = lpn.getReceipt();
+        boolean allDone = lpnRepository.findByReceipt_Id(receipt.getId()).stream()
+                .allMatch(l -> l.getStatus() == LpnStatus.STORED);
+        if (allDone) {
+            receipt.setStatus(ReceiptStatus.COMPLETED);
+            receiptRepository.save(receipt);
+        }
+
+        // Update location into Receipt Detail
+        InventoryReceiptDetail detail = lpn.getReceiptDetail();
+        if (detail != null) {
+            detail.setLocation(targetLocation);
+            inventoryReceiptDetailRepository.save(detail);
+        }
     }
 }

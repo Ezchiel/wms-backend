@@ -29,6 +29,11 @@ public class PartnerServiceImpl implements PartnerService {
         return partnerRepository.searchPartners(keyword, type, pageable);
     }
 
+    @Override
+    public List<Partner> getAllPartners() {
+        return partnerRepository.findAll();
+    }
+
     public List<Partner> getPartnersByType(PartnerType type) {
         return partnerRepository.findByType(type);
     }

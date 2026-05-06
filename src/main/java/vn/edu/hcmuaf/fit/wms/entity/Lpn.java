@@ -44,6 +44,9 @@ public class Lpn {
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
 
+    @Column(name = "serial_number", length = 100, unique = true)
+    private String serialNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private LpnStatus status;

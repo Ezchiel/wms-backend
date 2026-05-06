@@ -32,6 +32,14 @@ public class PartnerController {
         ));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<Partner>>> getAllWithoutPagination() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách tất cả đối tác thành công",
+                partnerService.getAllPartners()
+        ));
+    }
+
     @GetMapping("/type/{type}")
     public ResponseEntity<ApiResponse<List<Partner>>> getPartnersByType(@PathVariable PartnerType type) {
         return ResponseEntity.ok(ApiResponse.success(

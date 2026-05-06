@@ -19,6 +19,7 @@ public class StorageLocationController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<StorageLocation>>> getAllLocations(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String locationType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -26,13 +27,14 @@ public class StorageLocationController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách vị trí kho thành công",
-                locationService.getAllLocations(keyword, page, size, sortBy, sortDir)
+                locationService.getAllLocations(keyword, locationType, page, size, sortBy, sortDir)
         ));
     }
 
     @GetMapping("/available")
     public ResponseEntity<ApiResponse<List<StorageLocation>>> getAvailableLocations(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String locationType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -40,7 +42,7 @@ public class StorageLocationController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách vị trí kho còn trống thành công",
-                locationService.getAvailableLocations(keyword, page, size, sortBy, sortDir)
+                locationService.getAvailableLocations(keyword, locationType, page, size, sortBy, sortDir)
         ));
     }
 
