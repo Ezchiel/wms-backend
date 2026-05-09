@@ -246,14 +246,22 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     }
 
     private String generateLpnCode() {
+//        LocalDateTime now = LocalDateTime.now();
+//        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+//        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
+//
+//        long countToday = lpnRepository.countByCreatedAtBetween(startOfDay, endOfDay) + 1;
+//        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd"));
+//
+//        return String.format("LPN-%s-%04d", dateStr, countToday);
+
+
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
+        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"));
 
-        long countToday = lpnRepository.countByCreatedAtBetween(startOfDay, endOfDay) + 1;
-        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd"));
+        int randomSuffix = (int) (Math.random() * 900) + 100;
 
-        return String.format("LPN-%s-%04d", dateStr, countToday);
+        return String.format("LPN-%s-%d", dateStr, randomSuffix);
     }
 
     private String generateZplCommand(String lpnCode, String productName, Integer qty, String batch) {
