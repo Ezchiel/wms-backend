@@ -73,14 +73,18 @@ public class SecurityConfig {
 //        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
+                "https://localhost:5173",
                 "http://192.168.30.104:5173",
+                "https://192.168.30.104:5173",
+                "http://10.50.224.215:5173",
+                "https://10.50.224.215:5173",
                 "http://10.121.243.133:5173",
-                "http://10.50.211.120:5173"
+                "https://10.121.243.133:5173"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Auth-Token"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Auth-Token", "ngrok-skip-browser-warning"));
 
         configuration.setAllowCredentials(true);
 

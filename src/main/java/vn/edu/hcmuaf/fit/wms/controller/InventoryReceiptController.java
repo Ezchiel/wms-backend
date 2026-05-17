@@ -9,6 +9,7 @@ import vn.edu.hcmuaf.fit.wms.dto.CountAndLabelResponseDTO;
 import vn.edu.hcmuaf.fit.wms.dto.ReceiptRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.ReceiptResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryReceipt;
+import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
 
 import java.util.List;
@@ -29,10 +30,17 @@ public class InventoryReceiptController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ReceiptResponseDTO>>> getAllReceipts() {
+    public ResponseEntity<ApiResponse<List<ReceiptResponseDTO>>> getAllReceipts(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) ReceiptStatus status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách phiếu nhập kho thành công",
-                receiptService.getAllReceipts()
+                receiptService.getAllReceipts(keyword, status, page, size, sortBy, sortDir)
         ));
     }
 

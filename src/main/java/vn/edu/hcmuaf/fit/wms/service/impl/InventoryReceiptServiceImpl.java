@@ -1,6 +1,10 @@
 package vn.edu.hcmuaf.fit.wms.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +36,18 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final InventoryStockRepository stockRepository;
     private final LpnRepository lpnRepository;
     private final InventoryReceiptDetailRepository detailRepository;
+
+    @Override
+    public Page<ReceiptResponseDTO> getAllReceipts(String keyword, ReceiptStatus status, int page, int size, String sortBy, String sortDir) {
+        Sort sort = sortDir.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        Page<InventoryReceipt> receiptsPage = receiptRepository.searchInventoryReceipts(keyword, status, pageable);
+
+        return receiptsPage.map(this::mapToDTO);
+    }
 
     @Override
     @Transactional
@@ -75,13 +91,6 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
         InventoryReceipt savedReceipt = receiptRepository.save(receipt);
         return mapToDTO(savedReceipt);
-    }
-
-    @Override
-    public List<ReceiptResponseDTO> getAllReceipts() {
-        return receiptRepository.findAll().stream()
-                .map(this::mapToDTO)
-                .collect(Collectors.toList());
     }
 
     @Override
