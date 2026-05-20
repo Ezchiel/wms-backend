@@ -127,32 +127,57 @@ public class InventoryStockServiceImpl implements InventoryStockService {
     @Override
     @Transactional
     public void adjustStock(Long productId, Long locationId, String batchNo, Integer actualQuantity, String referenceCode) {
-        InventoryStock existingInventoryStock;
+        InventoryStock stock;
+
         if (batchNo != null && !batchNo.isBlank()) {
-            existingInventoryStock = stockRepository.findFirstByProduct_IdAndLocation_IdAndBatchNo(productId, locationId, batchNo)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm tồn kho nào với productId=" + productId + ", locationId=" + locationId + ", batchNo=" + batchNo));
+            stock = stockRepository
+                    .findFirstByProduct_IdAndLocation_IdAndBatchNo(productId, locationId, batchNo)
+                    .orElseGet(() -> buildNewStock(productId, locationId, batchNo));
         } else {
-            existingInventoryStock = stockRepository.findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(productId, locationId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm tồn kho nào với productId=" + productId + ", locationId=" + locationId));
+            stock = stockRepository
+                    .findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(productId, locationId)
+                    .orElseGet(() -> buildNewStock(productId, locationId, null));
         }
 
-        Integer currentQty = existingInventoryStock.getQuantity();
+        int currentQty = stock.getQuantity();
         int variance = actualQuantity - currentQty;
 
-        if (variance != 0) {
-            existingInventoryStock.setQuantity(actualQuantity);
-            stockRepository.save(existingInventoryStock);
+        if (variance == 0) return;
 
-            logTransaction(productId, locationId, TransactionType.ADJUST, referenceCode, variance);
+        stock.setQuantity(actualQuantity);
+
+        if (actualQuantity == 0 && stock.getId() != null) {
+            stockRepository.delete(stock);
+        } else {
+            stockRepository.save(stock);
         }
+
+        logTransaction(productId, locationId, TransactionType.ADJUST, referenceCode, variance);
     }
 
+    /**
+     * Get the total inventory at a given location (regardless of batch).
+     */
     @Override
     public Integer getCurrentStockQuantity(Long productId, Long locationId) {
         InventoryStock existingStockOpt = stockRepository.findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(productId, locationId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại ở vị trí này trong kho!"));
 
         return existingStockOpt.getQuantity();
+    }
+
+    /**
+     * Get inventory by batch. If batchNo = null, return the total quantity.
+     */
+    @Override
+    public Integer getCurrentStockQuantityByBatch(Long productId, Long locationId, String batchNo) {
+        if (batchNo != null && !batchNo.isBlank()) {
+            return stockRepository
+                    .findFirstByProduct_IdAndLocation_IdAndBatchNo(productId, locationId, batchNo)
+                    .map(InventoryStock::getQuantity)
+                    .orElse(0);
+        }
+        return getCurrentStockQuantity(productId, locationId);
     }
 
     @Override
@@ -174,6 +199,21 @@ public class InventoryStockServiceImpl implements InventoryStockService {
         return stockRepository.findByProductId(productId).stream()
                 .map(this::mapToResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    // ======================== PRIVATE HELPERS ========================
+    private InventoryStock buildNewStock(Long productId, Long locationId, String batchNo) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại: " + productId));
+        StorageLocation location = locationRepository.findById(locationId)
+                .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại: " + locationId));
+
+        return InventoryStock.builder()
+                .product(product)
+                .location(location)
+                .quantity(0)
+                .batchNo(batchNo)
+                .build();
     }
 
     private void logTransaction(Long productId, Long locationId, TransactionType type, String refCode, Integer qty) {

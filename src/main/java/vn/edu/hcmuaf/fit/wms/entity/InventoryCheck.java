@@ -31,6 +31,9 @@ public class InventoryCheck {
 
     private String notes;
 
+    @Column(name = "created_by")
+    private String createdBy;
+
     @OneToMany(mappedBy = "inventoryCheck", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<InventoryCheckDetail> details;
 }

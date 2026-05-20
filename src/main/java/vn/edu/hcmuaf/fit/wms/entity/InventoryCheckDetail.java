@@ -28,6 +28,9 @@ public class InventoryCheckDetail {
     @JoinColumn(name = "location_id", nullable = false)
     private StorageLocation location;
 
+    @Column(name = "batch_no", length = 50)
+    private String batchNo;
+
     @Column(name = "system_quantity", nullable = false)
     private Integer systemQuantity;
 

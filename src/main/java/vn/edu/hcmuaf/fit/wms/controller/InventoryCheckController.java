@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
 import vn.edu.hcmuaf.fit.wms.dto.CheckRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.CheckResponseDTO;
+import vn.edu.hcmuaf.fit.wms.entity.enums.CheckStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryCheckService;
 
 import java.util.List;
@@ -18,10 +19,17 @@ public class InventoryCheckController {
     private final InventoryCheckService checkService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<CheckResponseDTO>>> getAllChecks() {
+    public ResponseEntity<ApiResponse<List<CheckResponseDTO>>> getAllChecks(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) CheckStatus status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách phiếu kiểm kê thành công",
-                checkService.getAllChecks()
+                checkService.getAllChecks(keyword, status, page, size, sortBy, sortDir)
         ));
     }
 

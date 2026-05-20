@@ -93,7 +93,7 @@ public class PutawayServiceImpl implements PutawayService {
 
         // Update receipt status
         InventoryReceipt receipt = lpn.getReceipt();
-        boolean allDone = lpnRepository.findByReceipt_Id(receipt.getId()).stream()
+        boolean allDone = lpnRepository.findAllByReceipt_Id(receipt.getId()).stream()
                 .allMatch(l -> l.getStatus() == LpnStatus.STORED);
         if (allDone) {
             receipt.setStatus(ReceiptStatus.COMPLETED);

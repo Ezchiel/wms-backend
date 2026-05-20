@@ -2,6 +2,7 @@ package vn.edu.hcmuaf.fit.wms.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryStock;
 import vn.edu.hcmuaf.fit.wms.entity.Product;
@@ -32,4 +33,14 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStock, 
 
     @Query("SELECT s.location.zone, SUM(s.quantity) FROM InventoryStock s GROUP BY s.location.zone")
     List<Object[]> countTotalStockByZone();
+
+    /**
+     * The total inventory of a product at a specific location (regardless of batch).
+     */
+    @Query("SELECT COALESCE(SUM(s.quantity), 0) FROM InventoryStock s " +
+            "WHERE s.product.id = :productId AND s.location.id = :locationId")
+    Integer sumQuantityByProductAndLocation(
+            @Param("productId") Long productId,
+            @Param("locationId") Long locationId
+    );
 }

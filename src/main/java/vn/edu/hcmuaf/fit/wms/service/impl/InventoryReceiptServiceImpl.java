@@ -137,6 +137,11 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         InventoryReceiptDetail detail = detailRepository.findById(detailId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi tiết phiếu nhập"));
 
+        // Check if the receipt detail belong to the receipt
+        if (!detail.getInventoryReceipt().getId().equals(receiptId)) {
+            throw new RuntimeException("Chi tiết không thuộc phiếu nhập này!");
+        }
+
         // Update counted quantity
         Integer currentCounted = detail.getCountedQuantity() != null ? detail.getCountedQuantity() : 0;
         detail.setCountedQuantity(currentCounted + request.getCountedQuantity());
@@ -153,6 +158,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                 .batchNo(request.getBatchNo() != null ? request.getBatchNo() : detail.getBatchNo())
                 .expiryDate(request.getExpiryDate() != null ? request.getExpiryDate() : detail.getExpiryDate())
                 .status(LpnStatus.STAGED)
+                .createdAt(LocalDateTime.now())
                 .build();
         lpnRepository.save(lpn);
 
@@ -191,7 +197,9 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         stockRepository.save(stagingStock);
 
         // Check that all the details on the receipt have been counted
-        boolean isFullyCounted = receipt.getDetails().stream()
+        InventoryReceipt freshReceipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
+        boolean isFullyCounted = freshReceipt.getDetails().stream()
                 .allMatch(d -> d.getCountedQuantity() != null && d.getCountedQuantity() >= d.getQuantity());
 
         // preparing for Putaway
@@ -256,21 +264,12 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
     private String generateLpnCode() {
 //        LocalDateTime now = LocalDateTime.now();
-//        LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-//        LocalDateTime endOfDay = now.toLocalDate().atTime(23, 59, 59);
+//        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"));
 //
-//        long countToday = lpnRepository.countByCreatedAtBetween(startOfDay, endOfDay) + 1;
-//        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd"));
+//        int randomSuffix = (int) (Math.random() * 900) + 100;
 //
-//        return String.format("LPN-%s-%04d", dateStr, countToday);
-
-
-        LocalDateTime now = LocalDateTime.now();
-        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"));
-
-        int randomSuffix = (int) (Math.random() * 900) + 100;
-
-        return String.format("LPN-%s-%d", dateStr, randomSuffix);
+//        return String.format("LPN-%s-%d", dateStr, randomSuffix);
+        return "LPN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
     }
 
     private String generateZplCommand(String lpnCode, String productName, Integer qty, String batch) {

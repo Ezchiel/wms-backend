@@ -16,6 +16,7 @@ public class CheckRequestDTO {
     public static class CheckDetailDTO {
         private Long productId;
         private Long locationId;
+        private String batchNo;
         private Integer actualQuantity;
         private String reason;
     }
