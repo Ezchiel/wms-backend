@@ -39,4 +39,12 @@ public class InventoryStockController {
                 service.getStocksByProductId(productId)
         ));
     }
+
+    @GetMapping("/location/{locationId}")
+    public ResponseEntity<ApiResponse<List<InventoryStockResponseDTO>>> getByLocationId(@PathVariable Long locationId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách tồn kho theo vị trí thành công",
+                service.getStocksByLocationId(locationId)
+        ));
+    }
 }

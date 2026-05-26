@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface InventoryStockRepository extends JpaRepository<InventoryStock, Long> {
     List<InventoryStock> findByProductId(Long productId);
+    List<InventoryStock> findByLocation_Id(Long locationId);
     Optional<InventoryStock> findFirstByProduct_IdAndLocation_IdAndBatchNo(Long productId, Long locationId, String batchNo);
     Optional<InventoryStock> findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(Long productId, Long locationId);
     List<InventoryStock> findByProduct_IdAndLocation_Id(Long productId, Long locationId);

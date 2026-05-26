@@ -201,6 +201,13 @@ public class InventoryStockServiceImpl implements InventoryStockService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<InventoryStockResponseDTO> getStocksByLocationId(Long locationId) {
+        return stockRepository.findByLocation_Id(locationId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     // ======================== PRIVATE HELPERS ========================
     private InventoryStock buildNewStock(Long productId, Long locationId, String batchNo) {
         Product product = productRepository.findById(productId)

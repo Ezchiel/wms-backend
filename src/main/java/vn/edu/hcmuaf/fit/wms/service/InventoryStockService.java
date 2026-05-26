@@ -16,4 +16,5 @@ public interface InventoryStockService {
     List<InventoryStockResponseDTO> getAllStocks();
     InventoryStockResponseDTO getStockById(Long id);
     List<InventoryStockResponseDTO> getStocksByProductId(Long productId);
+    List<InventoryStockResponseDTO> getStocksByLocationId(Long locationId);
 }
