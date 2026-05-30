@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.hcmuaf.fit.wms.dto.StorageLocationRequestDTO;
+import vn.edu.hcmuaf.fit.wms.dto.StorageLocationResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
@@ -25,7 +27,7 @@ public class StorageLocationServiceImpl implements StorageLocationService {
     private final StorageLocationRepository locationRepository;
 
     @Override
-    public Page<StorageLocation> getAllLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
+    public Page<StorageLocationResponseDTO> getAllLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
@@ -41,11 +43,12 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             }
         }
 
-        return locationRepository.searchLocations(keyword, false, locType, pageable);
+        return locationRepository.searchLocations(keyword, false, locType, pageable)
+                .map(StorageLocationResponseDTO::fromEntity);
     }
 
     @Override
-    public Page<StorageLocation> getAvailableLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
+    public Page<StorageLocationResponseDTO> getAvailableLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
@@ -61,70 +64,76 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             }
         }
 
-        return locationRepository.searchLocations(keyword, true, locType, pageable);
+        return locationRepository.searchLocations(keyword, true, locType, pageable)
+                .map(StorageLocationResponseDTO::fromEntity);
     }
 
     @Override
-    public StorageLocation getLocationById(Long id) {
-        return locationRepository.findById(id)
+    public StorageLocationResponseDTO getLocationById(Long id) {
+        StorageLocation location = locationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí lưu trữ với ID: " + id));
+        return StorageLocationResponseDTO.fromEntity(location);
     }
 
     @Override
-    public StorageLocation getLocationByBarcode(String barcode) {
-        return locationRepository.findByBarcode(barcode)
+    public StorageLocationResponseDTO getLocationByBarcode(String barcode) {
+        StorageLocation location = locationRepository.findByBarcode(barcode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí với mã vạch: " + barcode));
+        return StorageLocationResponseDTO.fromEntity(location);
     }
 
     @Override
-    public StorageLocation createLocation(StorageLocation location) {
-        if (locationRepository.existsByBarcode(location.getBarcode())) {
+    public StorageLocationResponseDTO createLocation(StorageLocationRequestDTO dto) {
+        if (locationRepository.existsByBarcode(dto.barcode())) {
             throw new RuntimeException("Mã vạch vị trí đã tồn tại!");
         }
-        return locationRepository.save(location);
+        StorageLocation location = dto.toEntity();
+        return StorageLocationResponseDTO.fromEntity(locationRepository.save(location));
     }
 
     @Override
-    public StorageLocation updateLocation(Long id, StorageLocation locationDetails) {
-        StorageLocation existingLocation = getLocationById(id);
+    public StorageLocationResponseDTO updateLocation(Long id, StorageLocationRequestDTO dto) {
+        StorageLocation existingLocation = locationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí lưu trữ với ID: " + id));
 
-        existingLocation.setZone(locationDetails.getZone());
-        existingLocation.setRack(locationDetails.getRack());
-        existingLocation.setShelf(locationDetails.getShelf());
-        existingLocation.setDescription(locationDetails.getDescription());
-        existingLocation.setFull(locationDetails.isFull());
+        existingLocation.setZone(dto.zone());
+        existingLocation.setRack(dto.rack());
+        existingLocation.setShelf(dto.shelf());
+        existingLocation.setDescription(dto.description());
+        existingLocation.setFull(dto.isFull());
 
-        if(locationDetails.getLocationType() != null) {
-            existingLocation.setLocationType(locationDetails.getLocationType());
+        if (dto.locationType() != null) {
+            existingLocation.setLocationType(dto.locationType());
         }
 
-        if (!existingLocation.getBarcode().equals(locationDetails.getBarcode())
-                && locationRepository.existsByBarcode(locationDetails.getBarcode())) {
+        if (!existingLocation.getBarcode().equals(dto.barcode())
+                && locationRepository.existsByBarcode(dto.barcode())) {
             throw new RuntimeException("Mã vạch vị trí đã tồn tại!");
         }
-        existingLocation.setBarcode(locationDetails.getBarcode());
+        existingLocation.setBarcode(dto.barcode());
 
-        return locationRepository.save(existingLocation);
+        return StorageLocationResponseDTO.fromEntity(locationRepository.save(existingLocation));
     }
 
     @Override
     public void deleteLocation(Long id) {
-        StorageLocation existingLocation = getLocationById(id);
+        StorageLocation existingLocation = locationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí lưu trữ với ID: " + id));
         locationRepository.delete(existingLocation);
     }
 
     @Override
     @Transactional
-    public List<StorageLocation> createMultipleLocations(List<StorageLocation> locations) {
-        if (locations == null || locations.isEmpty()) {
+    public List<StorageLocationResponseDTO> createMultipleLocations(List<StorageLocationRequestDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
             throw new RuntimeException("Danh sách vị trí trống!");
         }
 
         // Check duplicate barcode in location list
         Set<String> uniqueBarcodes = new HashSet<>();
-        for (StorageLocation loc : locations) {
-            if (!uniqueBarcodes.add(loc.getBarcode())) {
-                throw new RuntimeException("Lỗi: File import chứa mã vạch trùng lặp (" + loc.getBarcode() + ")");
+        for (StorageLocationRequestDTO dto : dtos) {
+            if (!uniqueBarcodes.add(dto.barcode())) {
+                throw new RuntimeException("Lỗi: File import chứa mã vạch trùng lặp (" + dto.barcode() + ")");
             }
         }
 
@@ -137,7 +146,11 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             throw new RuntimeException("Lỗi: Các mã vạch sau đã tồn tại trong hệ thống: " + duplicateBarcodes);
         }
 
-        // Save all
-        return locationRepository.saveAll(locations);
+        // Save all and map to DTO
+        List<StorageLocation> locations = dtos.stream().map(StorageLocationRequestDTO::toEntity).toList();
+        return locationRepository.saveAll(locations)
+                .stream()
+                .map(StorageLocationResponseDTO::fromEntity)
+                .toList();
     }
 }

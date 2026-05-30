@@ -1,15 +1,10 @@
 package vn.edu.hcmuaf.fit.wms.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
-public class ProductRequestDTO {
-    private String productCode;
-    private String productName;
-    private String unit;
-    private Long groupId;
-    private String description;
-    private Integer minStockLevel;
-}
+public record ProductRequestDTO(
+    String productCode,
+    String productName,
+    String unit,
+    Long groupId,
+    String description,
+    Integer minStockLevel
+) {}

@@ -4,7 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
-import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
+import vn.edu.hcmuaf.fit.wms.dto.StorageLocationRequestDTO;
+import vn.edu.hcmuaf.fit.wms.dto.StorageLocationResponseDTO;
 import vn.edu.hcmuaf.fit.wms.service.StorageLocationService;
 
 import java.util.List;
@@ -17,7 +18,7 @@ public class StorageLocationController {
     private final StorageLocationService locationService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<StorageLocation>>> getAllLocations(
+    public ResponseEntity<ApiResponse<List<StorageLocationResponseDTO>>> getAllLocations(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String locationType,
             @RequestParam(defaultValue = "1") int page,
@@ -32,7 +33,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/available")
-    public ResponseEntity<ApiResponse<List<StorageLocation>>> getAvailableLocations(
+    public ResponseEntity<ApiResponse<List<StorageLocationResponseDTO>>> getAvailableLocations(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String locationType,
             @RequestParam(defaultValue = "1") int page,
@@ -47,7 +48,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<StorageLocation>> getLocationById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<StorageLocationResponseDTO>> getLocationById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy vị trí kho thành công",
                 locationService.getLocationById(id)
@@ -55,7 +56,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/barcode/{barcode}")
-    public ResponseEntity<ApiResponse<StorageLocation>> getLocationByBarcode(@PathVariable String barcode) {
+    public ResponseEntity<ApiResponse<StorageLocationResponseDTO>> getLocationByBarcode(@PathVariable String barcode) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy vị trí kho theo Barcode thành công",
                 locationService.getLocationByBarcode(barcode)
@@ -63,7 +64,7 @@ public class StorageLocationController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<StorageLocation>> createLocation(@RequestBody StorageLocation location) {
+    public ResponseEntity<ApiResponse<StorageLocationResponseDTO>> createLocation(@RequestBody StorageLocationRequestDTO location) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Tạo vị trí kho thành công",
                 locationService.createLocation(location)
@@ -71,7 +72,7 @@ public class StorageLocationController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<StorageLocation>> updateLocation(@PathVariable Long id, @RequestBody StorageLocation location) {
+    public ResponseEntity<ApiResponse<StorageLocationResponseDTO>> updateLocation(@PathVariable Long id, @RequestBody StorageLocationRequestDTO location) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Cập nhật vị trí kho thành công",
                 locationService.updateLocation(id, location)
@@ -85,7 +86,7 @@ public class StorageLocationController {
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<ApiResponse<List<StorageLocation>>> createMultipleLocations(@RequestBody List<StorageLocation> locations) {
+    public ResponseEntity<ApiResponse<List<StorageLocationResponseDTO>>> createMultipleLocations(@RequestBody List<StorageLocationRequestDTO> locations) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Tạo danh sách vị trí kho thành công",
                 locationService.createMultipleLocations(locations)

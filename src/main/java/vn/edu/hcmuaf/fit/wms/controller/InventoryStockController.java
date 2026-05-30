@@ -32,14 +32,6 @@ public class InventoryStockController {
         ));
     }
 
-    @GetMapping("/product/{productId}")
-    public ResponseEntity<ApiResponse<List<InventoryStockResponseDTO>>> getByProductId(@PathVariable Long productId) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Lấy danh sách tồn kho theo sản phẩm thành công",
-                service.getStocksByProductId(productId)
-        ));
-    }
-
     @GetMapping("/location/{locationId}")
     public ResponseEntity<ApiResponse<List<InventoryStockResponseDTO>>> getByLocationId(@PathVariable Long locationId) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -47,4 +39,15 @@ public class InventoryStockController {
                 service.getStocksByLocationId(locationId)
         ));
     }
+
+    @GetMapping("/location/{locationId}/product/{productId}")
+    public ResponseEntity<ApiResponse<List<InventoryStockResponseDTO>>> getByLocationIdAndProductId(
+            @PathVariable Long locationId,
+            @PathVariable Long productId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách tồn kho theo vị trí và sản phẩm thành công",
+                service.getStockByLocationIdAndProductId(locationId, productId)
+        ));
+    }
+
 }

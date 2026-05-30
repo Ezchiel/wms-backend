@@ -15,10 +15,11 @@ import java.util.Optional;
 public interface InventoryStockRepository extends JpaRepository<InventoryStock, Long> {
     List<InventoryStock> findByProductId(Long productId);
     List<InventoryStock> findByLocation_Id(Long locationId);
+    List<InventoryStock> findByLocation_IdAndProduct_Id(Long locationId, Long productId);
+
     Optional<InventoryStock> findFirstByProduct_IdAndLocation_IdAndBatchNo(Long productId, Long locationId, String batchNo);
     Optional<InventoryStock> findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(Long productId, Long locationId);
     List<InventoryStock> findByProduct_IdAndLocation_Id(Long productId, Long locationId);
-    Optional<InventoryStock> findByProductAndLocation(Product product, StorageLocation location);
     Optional<InventoryStock> findByProductAndLocationAndBatchNoAndSerialNumber(
             Product product,
             StorageLocation location,
@@ -34,14 +35,4 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStock, 
 
     @Query("SELECT s.location.zone, SUM(s.quantity) FROM InventoryStock s GROUP BY s.location.zone")
     List<Object[]> countTotalStockByZone();
-
-    /**
-     * The total inventory of a product at a specific location (regardless of batch).
-     */
-    @Query("SELECT COALESCE(SUM(s.quantity), 0) FROM InventoryStock s " +
-            "WHERE s.product.id = :productId AND s.location.id = :locationId")
-    Integer sumQuantityByProductAndLocation(
-            @Param("productId") Long productId,
-            @Param("locationId") Long locationId
-    );
 }
