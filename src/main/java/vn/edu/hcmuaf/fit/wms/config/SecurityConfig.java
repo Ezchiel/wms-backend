@@ -90,7 +90,8 @@ public class SecurityConfig {
                 "https://10.50.224.215:5173",
                 "http://10.121.243.133:5173",
                 "https://10.121.243.133:5173",
-                "https://172.21.58.133:5173"
+                "https://172.21.58.133:5173",
+                "https://10.50.11.12:5173"
         ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

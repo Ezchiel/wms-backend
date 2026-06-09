@@ -160,10 +160,10 @@ public class InventoryStockServiceImpl implements InventoryStockService {
      */
     @Override
     public Integer getCurrentStockQuantity(Long productId, Long locationId) {
-        InventoryStock existingStockOpt = stockRepository.findFirstByProduct_IdAndLocation_IdAndBatchNoIsNull(productId, locationId)
-                .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại ở vị trí này trong kho!"));
-
-        return existingStockOpt.getQuantity();
+        List<InventoryStock> stocks = stockRepository.findByProduct_IdAndLocation_Id(productId, locationId);
+        return stocks.stream()
+                .mapToInt(InventoryStock::getQuantity)
+                .sum();
     }
 
     /**

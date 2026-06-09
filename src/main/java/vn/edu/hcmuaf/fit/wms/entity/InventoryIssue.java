@@ -2,7 +2,7 @@ package vn.edu.hcmuaf.fit.wms.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,9 +31,15 @@ public class InventoryIssue {
     private LocalDateTime issueDate;
 
     @Enumerated(EnumType.STRING)
-    private ReceiptStatus status;
+    private IssueStatus status;
 
     private String notes;
+
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "inventoryIssue", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<InventoryIssueDetail> details;
