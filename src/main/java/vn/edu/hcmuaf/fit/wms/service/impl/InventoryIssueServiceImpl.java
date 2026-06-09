@@ -12,10 +12,12 @@ import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.*;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PickingTaskStatus;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryIssueRepository;
 import vn.edu.hcmuaf.fit.wms.repository.PartnerRepository;
 import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
+import vn.edu.hcmuaf.fit.wms.repository.PickingTaskRepository;
 import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 
@@ -33,6 +35,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
     private final InventoryStockService stockService;
     private final ProductRepository productRepository;
     private final StorageLocationRepository locationRepository;
+    private final PickingTaskRepository pickingTaskRepository;
 
     @Override
     public Page<IssueResponseDTO> getAllIssues(String keyword, IssueStatus status,
@@ -136,8 +139,8 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         InventoryIssue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
-        if (issue.getStatus() != IssueStatus.APPROVED) {
-            throw new RuntimeException("Chỉ có thể xác nhận xuất hàng với phiếu đang ở trạng thái APPROVED!");
+        if (issue.getStatus() != IssueStatus.APPROVED && issue.getStatus() != IssueStatus.PICKING) {
+            throw new RuntimeException("Chỉ có thể xác nhận xuất hàng với phiếu đang ở trạng thái APPROVED hoặc PICKING!");
         }
 
         for (InventoryIssueDetail detail : issue.getDetails()) {
@@ -161,8 +164,22 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         InventoryIssue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
-        if (issue.getStatus() != IssueStatus.DRAFT && issue.getStatus() != IssueStatus.APPROVED) {
-            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT hoặc APPROVED!");
+        if (issue.getStatus() != IssueStatus.DRAFT 
+                && issue.getStatus() != IssueStatus.APPROVED 
+                && issue.getStatus() != IssueStatus.PICKING) {
+            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT, APPROVED hoặc PICKING!");
+        }
+
+        // Nếu phiếu đang ở trạng thái PICKING, huỷ luôn các picking task liên quan chưa hoàn thành
+        if (issue.getStatus() == IssueStatus.PICKING) {
+            List<PickingTask> tasks = pickingTaskRepository.findByInventoryIssue_Id(issueId);
+            for (PickingTask task : tasks) {
+                if (task.getStatus() == PickingTaskStatus.PENDING || task.getStatus() == PickingTaskStatus.IN_PROGRESS) {
+                    task.setStatus(PickingTaskStatus.FAILED);
+                    task.setNote("Hủy do phiếu xuất kho bị hủy");
+                    pickingTaskRepository.save(task);
+                }
+            }
         }
 
         issue.setStatus(IssueStatus.CANCELLED);

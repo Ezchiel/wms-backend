@@ -9,6 +9,10 @@ import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
+import vn.edu.hcmuaf.fit.wms.service.PickingService;
+import vn.edu.hcmuaf.fit.wms.dto.PickingTaskResponseDTO;
+import org.springframework.security.access.prepost.PreAuthorize;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/issues")
@@ -16,6 +20,7 @@ import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 public class InventoryIssueController {
 
     private final InventoryIssueService issueService;
+    private final PickingService pickingService;
 
     /**
      * GET /api/issues
@@ -91,6 +96,19 @@ public class InventoryIssueController {
         return ResponseEntity.ok(ApiResponse.success(
                 "Huỷ phiếu xuất kho thành công",
                 issueService.cancelIssue(id)
+        ));
+    }
+
+    /**
+     * PUT /api/issues/{id}/assign-picking
+     * Quản lý phân công lấy hàng: APPROVED → PICKING
+     */
+    @PutMapping("/{id}/assign-picking")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponse<List<PickingTaskResponseDTO>>> assignPicking(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Phân công lấy hàng thành công",
+                pickingService.assignPickingTasks(id)
         ));
     }
 }
