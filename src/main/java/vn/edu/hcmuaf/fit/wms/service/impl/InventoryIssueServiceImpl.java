@@ -127,7 +127,22 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             throw new RuntimeException("Chỉ có thể duyệt phiếu đang ở trạng thái DRAFT!");
         }
 
-        issue.setStatus(IssueStatus.APPROVED);
+        // Create PickingTask
+        List<PickingTask> tasks = issue.getDetails().stream().map(detail ->
+            PickingTask.builder()
+                    .inventoryIssue(issue)
+                    .issueDetail(detail)
+                    .product(detail.getProduct())
+                    .location(detail.getLocation())
+                    .requiredQuantity(detail.getQuantity())
+                    .pickedQuantity(0)
+                    .status(PickingTaskStatus.PENDING)
+                    .build()
+        ).collect(Collectors.toList());
+
+        pickingTaskRepository.saveAll(tasks);
+
+        issue.setStatus(IssueStatus.PICKING);
         issueRepository.save(issue);
 
         return mapToDTO(issue);
@@ -139,8 +154,8 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         InventoryIssue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
-        if (issue.getStatus() != IssueStatus.APPROVED && issue.getStatus() != IssueStatus.PICKING) {
-            throw new RuntimeException("Chỉ có thể xác nhận xuất hàng với phiếu đang ở trạng thái APPROVED hoặc PICKING!");
+        if (issue.getStatus() != IssueStatus.PICKING) {
+            throw new RuntimeException("Chỉ có thể xác nhận xuất hàng với phiếu đang ở trạng thái PICKING!");
         }
 
         for (InventoryIssueDetail detail : issue.getDetails()) {
@@ -165,9 +180,8 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
         if (issue.getStatus() != IssueStatus.DRAFT 
-                && issue.getStatus() != IssueStatus.APPROVED 
                 && issue.getStatus() != IssueStatus.PICKING) {
-            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT, APPROVED hoặc PICKING!");
+            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT hoặc PICKING!");
         }
 
         // Nếu phiếu đang ở trạng thái PICKING, huỷ luôn các picking task liên quan chưa hoàn thành
