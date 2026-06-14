@@ -16,6 +16,10 @@ public interface InventoryIssueService {
 
     IssueResponseDTO approveIssue(Long issueId);
 
+    IssueResponseDTO claimIssue(Long issueId, String username);
+
+    Page<IssueResponseDTO> getAvailableIssues(int page, int size);
+
     IssueResponseDTO confirmIssue(Long issueId);
 
     IssueResponseDTO cancelIssue(Long issueId);

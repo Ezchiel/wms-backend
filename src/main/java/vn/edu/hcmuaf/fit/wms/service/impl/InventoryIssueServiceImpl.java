@@ -127,7 +127,30 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             throw new RuntimeException("Chỉ có thể duyệt phiếu đang ở trạng thái DRAFT!");
         }
 
-        // Create PickingTask
+        // Chỉ chuyển trạng thái sang APPROVED, chưa tạo PickingTask
+        // PickingTask sẽ được tạo khi nhân viên "nhận" phiếu qua claimIssue()
+        issue.setStatus(IssueStatus.APPROVED);
+        issueRepository.save(issue);
+
+        return mapToDTO(issue);
+    }
+
+    @Override
+    @Transactional
+    public IssueResponseDTO claimIssue(Long issueId, String username) {
+        // Dùng pessimistic write lock để tránh race condition khi 2 nhân viên cùng nhận 1 phiếu
+        InventoryIssue issue = issueRepository.findByIdWithLock(issueId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
+
+        if (issue.getStatus() != IssueStatus.APPROVED) {
+            throw new RuntimeException("Phiếu này không còn ở trạng thái chờ nhận!");
+        }
+
+        if (issue.getAssignedTo() != null) {
+            throw new RuntimeException("Phiếu này đã được nhân viên khác nhận rồi!");
+        }
+
+        // Tạo PickingTask cho từng dòng hàng, gắn assignedTo ngay
         List<PickingTask> tasks = issue.getDetails().stream().map(detail ->
             PickingTask.builder()
                     .inventoryIssue(issue)
@@ -137,15 +160,23 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                     .requiredQuantity(detail.getQuantity())
                     .pickedQuantity(0)
                     .status(PickingTaskStatus.PENDING)
+                    .assignedTo(username)
                     .build()
         ).collect(Collectors.toList());
 
         pickingTaskRepository.saveAll(tasks);
 
         issue.setStatus(IssueStatus.PICKING);
+        issue.setAssignedTo(username);
         issueRepository.save(issue);
 
         return mapToDTO(issue);
+    }
+
+    @Override
+    public Page<IssueResponseDTO> getAvailableIssues(int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("issueDate").descending());
+        return issueRepository.findAvailableIssues(pageable).map(this::mapToDTO);
     }
 
     @Override
@@ -179,9 +210,10 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         InventoryIssue issue = issueRepository.findById(issueId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất kho!"));
 
-        if (issue.getStatus() != IssueStatus.DRAFT 
+        if (issue.getStatus() != IssueStatus.DRAFT
+                && issue.getStatus() != IssueStatus.APPROVED
                 && issue.getStatus() != IssueStatus.PICKING) {
-            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT hoặc PICKING!");
+            throw new RuntimeException("Chỉ có thể huỷ phiếu đang ở trạng thái DRAFT, APPROVED hoặc PICKING!");
         }
 
         // Nếu phiếu đang ở trạng thái PICKING, huỷ luôn các picking task liên quan chưa hoàn thành
@@ -228,6 +260,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                 .issueDate(entity.getIssueDate())
                 .status(entity.getStatus())
                 .notes(entity.getNotes())
+                .assignedTo(entity.getAssignedTo())
                 .createdBy(entity.getCreatedBy())
                 .createdAt(entity.getCreatedAt())
                 .details(detailDTOs)

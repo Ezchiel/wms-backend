@@ -35,6 +35,9 @@ public class InventoryIssue {
 
     private String notes;
 
+    @Column(name = "assigned_to")
+    private String assignedTo;
+
     @Column(name = "created_by")
     private String createdBy;
 

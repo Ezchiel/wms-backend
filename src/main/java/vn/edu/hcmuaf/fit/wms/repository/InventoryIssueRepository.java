@@ -1,13 +1,17 @@
 package vn.edu.hcmuaf.fit.wms.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryIssue;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
+
+import java.util.Optional;
 
 @Repository
 public interface InventoryIssueRepository extends JpaRepository<InventoryIssue, Long> {
@@ -23,4 +27,17 @@ public interface InventoryIssueRepository extends JpaRepository<InventoryIssue, 
             @Param("status") IssueStatus status,
             Pageable pageable
     );
+
+    /**
+     * Lấy danh sách phiếu APPROVED chưa có nhân viên nào nhận (assignedTo = null)
+     */
+    @Query("SELECT i FROM InventoryIssue i WHERE i.status = 'APPROVED' AND i.assignedTo IS NULL")
+    Page<InventoryIssue> findAvailableIssues(Pageable pageable);
+
+    /**
+     * Tìm phiếu theo ID với pessimistic write lock để tránh race condition khi claim
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM InventoryIssue i WHERE i.id = :id")
+    Optional<InventoryIssue> findByIdWithLock(@Param("id") Long id);
 }

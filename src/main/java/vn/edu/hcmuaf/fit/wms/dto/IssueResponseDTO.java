@@ -19,6 +19,7 @@ public class IssueResponseDTO {
     private LocalDateTime issueDate;
     private IssueStatus status;
     private String notes;
+    private String assignedTo;
     private String createdBy;
     private LocalDateTime createdAt;
     private List<IssueDetailResponseDTO> details;

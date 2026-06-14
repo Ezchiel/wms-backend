@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.wms.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
 import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
@@ -84,8 +85,39 @@ public class InventoryIssueController {
     }
 
     /**
+     * GET /api/issues/available
+     * Nhân viên xem danh sách phiếu đang chờ được nhận (status = APPROVED, assignedTo = null)
+     */
+    @GetMapping("/available")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    public ResponseEntity<ApiResponse<java.util.List<IssueResponseDTO>>> getAvailableIssues(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<IssueResponseDTO> result = issueService.getAvailableIssues(page, size);
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách phiếu chờ nhận thành công", result));
+    }
+
+    /**
+     * PUT /api/issues/{id}/claim
+     * Nhân viên nhận phiếu để bắt đầu picking (APPROVED → PICKING)
+     */
+    @PutMapping("/{id}/claim")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    public ResponseEntity<ApiResponse<IssueResponseDTO>> claimIssue(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        return ResponseEntity.ok(ApiResponse.success(
+                "Nhận phiếu xuất kho thành công",
+                issueService.claimIssue(id, username)
+        ));
+    }
+
+    /**
      * PUT /api/issues/{id}/cancel
-     * Huỷ phiếu: DRAFT/APPROVED → CANCELLED
+     * Huỷ phiếu: DRAFT/APPROVED/PICKING → CANCELLED
      */
     @PutMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<IssueResponseDTO>> cancelIssue(@PathVariable Long id) {
