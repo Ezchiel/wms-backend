@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import vn.edu.hcmuaf.fit.wms.service.PutawayService;
 @RestController
 @RequestMapping("/api/putaway")
 @RequiredArgsConstructor
+@Tag(name = "Putaway", description = "Các API thao tác cất hàng nhập kho")
 public class PutawayController {
     private final PutawayService putawayService;
 

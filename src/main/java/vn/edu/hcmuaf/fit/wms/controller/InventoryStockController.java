@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/inventory-stocks")
 @RequiredArgsConstructor
+@Tag(name = "Inventory Stocks", description = "Các API quản lý hàng tồn kho")
 public class InventoryStockController {
 
     private final InventoryStockService service;

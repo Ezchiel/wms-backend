@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,6 +16,7 @@ import vn.edu.hcmuaf.fit.wms.security.JwtService;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Auth", description = "Các API xác thực người dùng")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;

@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/issues")
 @RequiredArgsConstructor
+@Tag(name = "Inventory Issues", description = "Các API quản lý phiếu xuất kho")
 public class InventoryIssueController {
 
     private final InventoryIssueService issueService;

@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/picking")
 @RequiredArgsConstructor
+@Tag(name = "Picking", description = "Các API thao tác lấy hàng xuất kho")
 public class PickingController {
 
     private final PickingService pickingService;

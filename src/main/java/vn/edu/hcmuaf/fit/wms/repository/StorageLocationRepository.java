@@ -40,4 +40,18 @@ public interface StorageLocationRepository extends JpaRepository<StorageLocation
                                           @Param("isAvailableOnly") boolean isAvailableOnly,
                                           @Param("locationType") LocationType locationType,
                                           Pageable pageable);
+
+    /**
+     * Thống kê tỷ lệ sử dụng vị trí kho nhóm theo zone.
+     * Trả về: [zone, totalLocations, fullLocations, emptyLocations]
+     */
+    @Query("SELECT l.zone, " +
+           "COUNT(l), " +
+           "SUM(CASE WHEN l.isFull = true THEN 1L ELSE 0L END), " +
+           "SUM(CASE WHEN l.isFull = false THEN 1L ELSE 0L END) " +
+           "FROM StorageLocation l " +
+           "WHERE l.locationType = 'STORAGE' " +
+           "GROUP BY l.zone " +
+           "ORDER BY l.zone")
+    List<Object[]> getUtilizationByZone();
 }

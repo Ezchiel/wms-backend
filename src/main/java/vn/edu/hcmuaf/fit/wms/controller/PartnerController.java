@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/partners")
 @RequiredArgsConstructor
+@Tag(name = "Partners", description = "Các API quản lý đối tác kho")
 public class PartnerController {
 
     private final PartnerService partnerService;

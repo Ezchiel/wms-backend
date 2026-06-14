@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/product-groups")
 @RequiredArgsConstructor
+@Tag(name = "Product Groups", description = "Các API quản lý nhóm sản phẩm")
 public class ProductGroupController {
 
     private final ProductGroupService productGroupService;
