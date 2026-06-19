@@ -22,6 +22,7 @@ public class PutawayController {
                 putawayService.getSuggestion(lpnCode)));
     }
 
+    @Deprecated
     @PostMapping("/confirm")
     public ResponseEntity<ApiResponse<Void>> confirmPutaway(@RequestBody PutawayRequestDTO request) {
         putawayService.confirm(request);

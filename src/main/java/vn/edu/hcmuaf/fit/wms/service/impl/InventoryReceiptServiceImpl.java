@@ -12,6 +12,7 @@ import vn.edu.hcmuaf.fit.wms.dto.*;
 import vn.edu.hcmuaf.fit.wms.entity.*;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LpnStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.PutawayTaskStatus;
 import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 import vn.edu.hcmuaf.fit.wms.repository.*;
 import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
@@ -36,6 +37,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final InventoryStockRepository stockRepository;
     private final LpnRepository lpnRepository;
     private final InventoryReceiptDetailRepository detailRepository;
+    private final PutawayTaskRepository putawayTaskRepository;
 
     @Override
     public Page<ReceiptResponseDTO> getAllReceipts(String keyword, ReceiptStatus status, int page, int size, String sortBy, String sortDir) {
@@ -47,6 +49,31 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         Page<InventoryReceipt> receiptsPage = receiptRepository.searchInventoryReceipts(keyword, status, pageable);
 
         return receiptsPage.map(this::mapToDTO);
+    }
+
+    @Override
+    public Page<ReceiptResponseDTO> getAvailableReceipts(int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        return receiptRepository.findAvailableReceipts(pageable).map(this::mapToDTO);
+    }
+
+    @Override
+    @Transactional
+    public ReceiptResponseDTO claimReceipt(Long receiptId, String username) {
+        // Use pessimistic write lock to prevent race condition
+        InventoryReceipt receipt = receiptRepository.findByIdWithLock(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập kho!"));
+
+        if (receipt.getStatus() != ReceiptStatus.RECEIVING) {
+            throw new RuntimeException("Chỉ có thể nhận phiếu đang ở trạng thái RECEIVING! Trạng thái hiện tại: " + receipt.getStatus());
+        }
+
+        if (receipt.getAssignedTo() != null) {
+            throw new RuntimeException("Phiếu này đã được nhân viên khác nhận: " + receipt.getAssignedTo());
+        }
+
+        receipt.setAssignedTo(username);
+        return mapToDTO(receiptRepository.save(receipt));
     }
 
     @Override
@@ -136,6 +163,12 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
             throw new RuntimeException("Phiếu nhập cần được xác nhận bởi quản lý thì mới có thể kiểm đếm");
         }
 
+        // Check assigned employee
+        String currentUser = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getName();
+        if (receipt.getAssignedTo() != null && !receipt.getAssignedTo().equals(currentUser)) {
+            throw new RuntimeException("Bạn không có quyền kiểm đếm phiếu này. Phiếu đã được nhận bởi: " + receipt.getAssignedTo());
+        }
+
         // get receipt detail information
         InventoryReceiptDetail detail = detailRepository.findById(detailId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy chi tiết phiếu nhập"));
@@ -206,10 +239,22 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         boolean isFullyCounted = freshReceipt.getDetails().stream()
                 .allMatch(d -> d.getCountedQuantity() != null && d.getCountedQuantity() >= d.getQuantity());
 
-        // preparing for Putaway
+        // When fully counted: move to PUTAWAY_PENDING and auto-create PutawayTask for each LPN
         if (isFullyCounted) {
-            receipt.setStatus(ReceiptStatus.PUTAWAY_PENDING);
-            receiptRepository.save(receipt);
+            freshReceipt.setStatus(ReceiptStatus.PUTAWAY_PENDING);
+            receiptRepository.save(freshReceipt);
+
+            // Auto-create PutawayTask for each LPN of this receipt
+            List<Lpn> allLpns = lpnRepository.findAllByReceipt_Id(receiptId);
+            for (Lpn receiptLpn : allLpns) {
+                PutawayTask task = PutawayTask.builder()
+                        .receipt(freshReceipt)
+                        .lpn(receiptLpn)
+                        .product(receiptLpn.getProduct())
+                        .status(PutawayTaskStatus.PENDING)
+                        .build();
+                putawayTaskRepository.save(task);
+            }
         }
 
         // Create label printing (ZPL)
@@ -267,12 +312,6 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     }
 
     private String generateLpnCode() {
-//        LocalDateTime now = LocalDateTime.now();
-//        String dateStr = now.format(java.time.format.DateTimeFormatter.ofPattern("yyMMddHHmmss"));
-//
-//        int randomSuffix = (int) (Math.random() * 900) + 100;
-//
-//        return String.format("LPN-%s-%d", dateStr, randomSuffix);
         return "LPN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
     }
 

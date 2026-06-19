@@ -43,4 +43,8 @@ public class InventoryReceipt {
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "assigned_to")
+    private String assignedTo;
 }
+

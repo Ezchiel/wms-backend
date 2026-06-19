@@ -16,4 +16,8 @@ public interface InventoryReceiptService {
     ReceiptResponseDTO confirmReceipt(Long receiptId);
 
     CountAndLabelResponseDTO countAndLabel(Long receiptId, Long detailId, CountAndLabelRequestDTO request);
+
+    Page<ReceiptResponseDTO> getAvailableReceipts(int page, int size);
+
+    ReceiptResponseDTO claimReceipt(Long receiptId, String username);
 }
