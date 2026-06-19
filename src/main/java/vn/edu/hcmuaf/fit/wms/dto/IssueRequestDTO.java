@@ -18,5 +18,6 @@ public class IssueRequestDTO {
         private Long productId;
         private Long locationId;
         private Integer quantity;
+        private String batchNo;
     }
 }

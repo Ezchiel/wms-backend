@@ -44,6 +44,11 @@ public class PickingServiceImpl implements PickingService {
             throw new RuntimeException("Chỉ có thể phân công lấy hàng với phiếu đang ở trạng thái APPROVED!");
         }
 
+        List<PickingTask> existingTasks = pickingTaskRepository.findByInventoryIssue_Id(issueId);
+        if (!existingTasks.isEmpty()) {
+            throw new RuntimeException("Lệnh lấy hàng đã được tạo cho phiếu này!");
+        }
+
         // Tạo picking tasks
         List<PickingTask> tasks = issue.getDetails().stream().map(detail -> {
             return PickingTask.builder()

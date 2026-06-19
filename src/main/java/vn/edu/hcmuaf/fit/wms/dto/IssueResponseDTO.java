@@ -36,5 +36,6 @@ public class IssueResponseDTO {
         private String locationBarcode;
         private String locationDescription;
         private Integer quantity;
+        private String batchNo;
     }
 }

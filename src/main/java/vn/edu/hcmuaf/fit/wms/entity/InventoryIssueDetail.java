@@ -30,4 +30,7 @@ public class InventoryIssueDetail {
 
     @Column(nullable = false)
     private Integer quantity;
+
+    @Column(name = "batch_no")
+    private String batchNo;
 }

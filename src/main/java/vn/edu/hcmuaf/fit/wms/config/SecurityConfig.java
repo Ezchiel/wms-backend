@@ -22,7 +22,6 @@ import vn.edu.hcmuaf.fit.wms.security.CustomUserDetailsService;
 import vn.edu.hcmuaf.fit.wms.security.JwtAuthenticationFilter;
 
 import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -52,11 +51,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                                "/swagger-ui.html")
+                        .permitAll()
 
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -80,7 +78,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-//        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
                 "https://localhost:5173",
@@ -91,12 +89,12 @@ public class SecurityConfig {
                 "http://10.121.243.133:5173",
                 "https://10.121.243.133:5173",
                 "https://172.21.58.133:5173",
-                "https://10.50.11.12:5173"
-        ));
+                "https://10.50.11.12:5173"));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Auth-Token", "ngrok-skip-browser-warning"));
+        configuration.setAllowedHeaders(
+                Arrays.asList("Authorization", "Content-Type", "X-Auth-Token", "ngrok-skip-browser-warning"));
 
         configuration.setAllowCredentials(true);
 

@@ -61,7 +61,7 @@ public class ReportServiceImpl implements ReportService {
             String zoneName = (String) row[0];
             Long totalQuantity = (Long) row[1];
 
-            chartData.add(new ChartDataDTO("Dãy " + zoneName, totalQuantity));
+            chartData.add(new ChartDataDTO("Zone " + zoneName, totalQuantity));
         }
 
         return chartData;

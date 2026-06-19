@@ -1,5 +1,7 @@
 package vn.edu.hcmuaf.fit.wms.repository;
 
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,32 @@ import java.util.Optional;
 
 @Repository
 public interface InventoryStockRepository extends JpaRepository<InventoryStock, Long> {
+    boolean existsBySerialNumber(String serialNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM InventoryStock s WHERE s.product.id = :productId AND s.location.id = :locationId")
+    List<InventoryStock> findByProduct_IdAndLocation_IdWithLock(@Param("productId") Long productId, @Param("locationId") Long locationId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM InventoryStock s WHERE s.product.id = :productId AND s.location.id = :locationId AND s.batchNo = :batchNo")
+    List<InventoryStock> findByProduct_IdAndLocation_IdAndBatchNoWithLock(@Param("productId") Long productId, @Param("locationId") Long locationId, @Param("batchNo") String batchNo);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM InventoryStock s WHERE s.product.id = :productId AND s.location.id = :locationId AND s.batchNo = :batchNo AND s.serialNumber = :serialNumber")
+    List<InventoryStock> findByProduct_IdAndLocation_IdAndBatchNoAndSerialNumberWithLock(
+            @Param("productId") Long productId,
+            @Param("locationId") Long locationId,
+            @Param("batchNo") String batchNo,
+            @Param("serialNumber") String serialNumber
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM InventoryStock s WHERE s.product.id = :productId AND s.location.id = :locationId AND s.batchNo IS NULL AND s.serialNumber = :serialNumber")
+    List<InventoryStock> findByProduct_IdAndLocation_IdAndBatchNoIsNullAndSerialNumberWithLock(
+            @Param("productId") Long productId,
+            @Param("locationId") Long locationId,
+            @Param("serialNumber") String serialNumber
+    );
     List<InventoryStock> findByProductId(Long productId);
     List<InventoryStock> findByLocation_Id(Long locationId);
     List<InventoryStock> findByLocation_IdAndProduct_Id(Long locationId, Long productId);

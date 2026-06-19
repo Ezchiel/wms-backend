@@ -12,6 +12,7 @@ import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.*;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.PickingTaskStatus;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryIssueRepository;
 import vn.edu.hcmuaf.fit.wms.repository.PartnerRepository;
@@ -67,10 +68,22 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         // Validate tồn kho trước khi tạo phiếu
         if (requestDTO.getDetails() != null) {
             for (IssueRequestDTO.IssueDetailDTO dto : requestDTO.getDetails()) {
-                if (dto.getLocationId() != null && dto.getLocationId().equals(1L)) {
-                    throw new RuntimeException("Không được phép xuất kho từ Khu vực nhận hàng mặc định của hệ thống!");
+                StorageLocation loc = locationRepository.findById(dto.getLocationId())
+                        .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
+                if (loc.getLocationType() == LocationType.RECEIVING_DOCK
+                        || loc.getLocationType() == LocationType.SHIPPING_DOCK) {
+                    throw new RuntimeException(
+                            "Không được phép xuất kho từ vị trí loại: " + loc.getLocationType()
+                    );
                 }
-                Integer available = stockService.getCurrentStockQuantity(dto.getProductId(), dto.getLocationId());
+
+                Integer available;
+                if (dto.getBatchNo() != null && !dto.getBatchNo().trim().isEmpty()) {
+                    available = stockService.getCurrentStockQuantityByBatch(dto.getProductId(), dto.getLocationId(), dto.getBatchNo());
+                } else {
+                    available = stockService.getCurrentStockQuantity(dto.getProductId(), dto.getLocationId());
+                }
+
                 if (available == null || available < dto.getQuantity()) {
                     Product product = productRepository.findById(dto.getProductId())
                             .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
@@ -108,6 +121,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                     .product(product)
                     .location(location)
                     .quantity(dto.getQuantity())
+                    .batchNo(dto.getBatchNo())
                     .build();
         }).collect(Collectors.toList());
 
@@ -150,6 +164,11 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             throw new RuntimeException("Phiếu này đã được nhân viên khác nhận rồi!");
         }
 
+        List<PickingTask> existingTasks = pickingTaskRepository.findByInventoryIssue_Id(issueId);
+        if (!existingTasks.isEmpty()) {
+            throw new RuntimeException("Lệnh lấy hàng đã được tạo cho phiếu này!");
+        }
+
         // Tạo PickingTask cho từng dòng hàng, gắn assignedTo ngay
         List<PickingTask> tasks = issue.getDetails().stream().map(detail ->
             PickingTask.builder()
@@ -189,11 +208,43 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             throw new RuntimeException("Chỉ có thể xác nhận xuất hàng với phiếu đang ở trạng thái PICKING!");
         }
 
+        List<PickingTask> tasks = pickingTaskRepository.findByInventoryIssue_Id(issueId);
+        if (tasks.isEmpty() && issue.getDetails() != null && !issue.getDetails().isEmpty()) {
+            throw new RuntimeException("Không thể xác nhận xuất kho: lệnh lấy hàng chưa được tạo!");
+        }
+        if (!tasks.isEmpty()) {
+            boolean allDone = tasks.stream().allMatch(t -> t.getStatus() == PickingTaskStatus.DONE);
+            if (!allDone) {
+                throw new RuntimeException("Không thể xác nhận xuất kho: vẫn còn lệnh lấy hàng chưa hoàn thành!");
+            }
+        }
+
+        // Kiểm tra lại tồn kho tức thời trước khi thực hiện trừ kho thực tế
+        for (InventoryIssueDetail detail : issue.getDetails()) {
+            Integer available;
+            if (detail.getBatchNo() != null && !detail.getBatchNo().trim().isEmpty()) {
+                available = stockService.getCurrentStockQuantityByBatch(
+                        detail.getProduct().getId(), detail.getLocation().getId(), detail.getBatchNo());
+            } else {
+                available = stockService.getCurrentStockQuantity(
+                        detail.getProduct().getId(), detail.getLocation().getId());
+            }
+            if (available == null || available < detail.getQuantity()) {
+                throw new RuntimeException(
+                        "Không đủ tồn kho tại thời điểm xuất kho cho sản phẩm: "
+                        + detail.getProduct().getProductName()
+                        + (detail.getBatchNo() != null ? " (Lô: " + detail.getBatchNo() + ")" : "")
+                );
+            }
+        }
+
         for (InventoryIssueDetail detail : issue.getDetails()) {
             stockService.deductStock(
                     detail.getProduct().getId(),
                     detail.getLocation().getId(),
                     detail.getQuantity(),
+                    detail.getBatchNo(),
+                    null,
                     issue.getIssueCode()
             );
         }
@@ -248,6 +299,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                                 .locationBarcode(detail.getLocation().getBarcode())
                                 .locationDescription(detail.getLocation().getDescription())
                                 .quantity(detail.getQuantity())
+                                .batchNo(detail.getBatchNo())
                                 .build())
                         .collect(Collectors.toList())
                 : List.of();

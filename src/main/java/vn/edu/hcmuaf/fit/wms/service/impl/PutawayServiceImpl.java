@@ -23,6 +23,7 @@ public class PutawayServiceImpl implements PutawayService {
     private final InventoryStockRepository inventoryStockRepository;
     private final InventoryReceiptDetailRepository inventoryReceiptDetailRepository;
     private final InventoryReceiptRepository receiptRepository;
+    private final InventoryStockService stockService;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,35 +58,43 @@ public class PutawayServiceImpl implements PutawayService {
         StorageLocation targetLocation = storageLocationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new RuntimeException("Vị trí cất hàng không hợp lệ"));
 
+        if (targetLocation.getLocationType() != LocationType.STORAGE) {
+            throw new RuntimeException(
+                    "Vị trí cất hàng phải là loại STORAGE! Vị trí \"" + targetLocation.getBarcode()
+                    + "\" có loại: " + targetLocation.getLocationType()
+            );
+        }
+
         // Get stage location
         StorageLocation stagingLocation = storageLocationRepository.findFirstByLocationType(LocationType.RECEIVING_DOCK)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bãi nhận hàng tạm"));
 
-        // Subtract stock at the stage
-        InventoryStock stagingStock = inventoryStockRepository
-                .findByProductAndLocationAndBatchNoAndSerialNumber(lpn.getProduct(), stagingLocation, lpn.getBatchNo(), lpn.getSerialNumber())
-                .orElseThrow(() -> new RuntimeException("Lỗi logic: Không tìm thấy tồn kho tạm của sản phẩm này"));
+        // Trừ tồn kho tạm tại staging location (Dock nhận hàng) và ghi nhận giao dịch ISSUE
+        stockService.deductStock(
+                lpn.getProduct().getId(),
+                stagingLocation.getId(),
+                lpn.getQuantity(),
+                lpn.getBatchNo(),
+                lpn.getSerialNumber(),
+                "PUTAWAY-" + lpn.getLpnCode()
+        );
 
-        if (stagingStock.getQuantity() < lpn.getQuantity()) {
-            throw new RuntimeException("Số lượng tồn kho tạm không đủ để thực hiện cất hàng");
-        }
-        stagingStock.setQuantity(stagingStock.getQuantity() - lpn.getQuantity());
-        inventoryStockRepository.save(stagingStock);
-
-        // Add stock
-        InventoryStock targetStock = inventoryStockRepository
-                .findByProductAndLocationAndBatchNoAndSerialNumber(lpn.getProduct(), targetLocation, lpn.getBatchNo(), lpn.getSerialNumber())
-                .orElse(InventoryStock.builder()
-                        .product(lpn.getProduct())
-                        .location(targetLocation)
-                        .quantity(0)
+        // Thêm tồn kho vào vị trí đích (STORAGE) và ghi nhận giao dịch RECEIPT
+        stockService.addStock(
+                InventoryStockRequestDTO.builder()
+                        .productId(lpn.getProduct().getId())
+                        .locationId(targetLocation.getId())
+                        .quantity(lpn.getQuantity())
                         .batchNo(lpn.getBatchNo())
                         .expiryDate(lpn.getExpiryDate())
                         .serialNumber(lpn.getSerialNumber())
-                        .build());
+                        .build(),
+                "PUTAWAY-" + lpn.getLpnCode()
+        );
 
-        targetStock.setQuantity(targetStock.getQuantity() + lpn.getQuantity());
-        inventoryStockRepository.save(targetStock);
+        // Cập nhật trạng thái vị trí đích
+        targetLocation.setFull(true);
+        storageLocationRepository.save(targetLocation);
 
         // Update LPN status
         lpn.setStatus(LpnStatus.STORED);

@@ -41,6 +41,9 @@ public class InventoryStockServiceImpl implements InventoryStockService {
 
         // Case 1: serial number
         if (request.getSerialNumber() != null && !request.getSerialNumber().trim().isEmpty()) {
+            if (stockRepository.existsBySerialNumber(request.getSerialNumber().trim())) {
+                throw new RuntimeException("Lỗi: Số Serial " + request.getSerialNumber() + " này đã được kiểm đếm hoặc đã tồn tại trong hệ thống!");
+            }
             InventoryStock newStock = InventoryStock.builder()
                     .product(product)
                     .location(location)
@@ -93,7 +96,7 @@ public class InventoryStockServiceImpl implements InventoryStockService {
     @Override
     @Transactional
     public void deductStock(Long productId, Long locationId, Integer quantityToDeduct, String referenceCode) {
-        List<InventoryStock> stocks = stockRepository.findByProduct_IdAndLocation_Id(productId, locationId);
+        List<InventoryStock> stocks = stockRepository.findByProduct_IdAndLocation_IdWithLock(productId, locationId);
 
         int remainingToDeduct = quantityToDeduct;
 
@@ -112,6 +115,7 @@ public class InventoryStockServiceImpl implements InventoryStockService {
             // if quantity = 0 -> delete stock
             if (stock.getQuantity() == 0) {
                 stockRepository.delete(stock);
+                checkAndUpdateLocationIsFull(locationId);
             } else {
                 stockRepository.save(stock);
             }
@@ -119,6 +123,54 @@ public class InventoryStockServiceImpl implements InventoryStockService {
 
         if (remainingToDeduct > 0) {
             throw new RuntimeException("Không đủ số lượng tồn kho để xuất cho sản phẩm có ID: " + productId);
+        }
+
+        logTransaction(productId, locationId, TransactionType.ISSUE, referenceCode, quantityToDeduct);
+    }
+
+    @Override
+    @Transactional
+    public void deductStock(Long productId, Long locationId, Integer quantityToDeduct, String batchNo, String serialNumber, String referenceCode) {
+        boolean hasBatch = batchNo != null && !batchNo.trim().isEmpty();
+        boolean hasSerial = serialNumber != null && !serialNumber.trim().isEmpty();
+
+        List<InventoryStock> stocks;
+        if (hasBatch && hasSerial) {
+            stocks = stockRepository.findByProduct_IdAndLocation_IdAndBatchNoAndSerialNumberWithLock(productId, locationId, batchNo, serialNumber);
+        } else if (hasBatch) {
+            stocks = stockRepository.findByProduct_IdAndLocation_IdAndBatchNoWithLock(productId, locationId, batchNo);
+        } else if (hasSerial) {
+            stocks = stockRepository.findByProduct_IdAndLocation_IdAndBatchNoIsNullAndSerialNumberWithLock(productId, locationId, serialNumber);
+        } else {
+            stocks = stockRepository.findByProduct_IdAndLocation_IdWithLock(productId, locationId);
+        }
+
+        int remainingToDeduct = quantityToDeduct;
+
+        for (InventoryStock stock : stocks) {
+            if (remainingToDeduct <= 0) break;
+
+            int currentQty = stock.getQuantity();
+            if (currentQty <= 0) continue;
+
+            int deductAmount = Math.min(currentQty, remainingToDeduct);
+
+            // update quantity of current stock
+            stock.setQuantity(currentQty - deductAmount);
+            remainingToDeduct -= deductAmount;
+
+            // if quantity = 0 -> delete stock
+            if (stock.getQuantity() == 0) {
+                stockRepository.delete(stock);
+                checkAndUpdateLocationIsFull(locationId);
+            } else {
+                stockRepository.save(stock);
+            }
+        }
+
+        if (remainingToDeduct > 0) {
+            throw new RuntimeException("Không đủ số lượng tồn kho để xuất cho sản phẩm có ID: " + productId +
+                    (hasBatch ? " với số lô: " + batchNo : "") + (hasSerial ? " với số serial: " + serialNumber : ""));
         }
 
         logTransaction(productId, locationId, TransactionType.ISSUE, referenceCode, quantityToDeduct);
@@ -148,6 +200,7 @@ public class InventoryStockServiceImpl implements InventoryStockService {
 
         if (actualQuantity == 0 && stock.getId() != null) {
             stockRepository.delete(stock);
+            checkAndUpdateLocationIsFull(locationId);
         } else {
             stockRepository.save(stock);
         }
@@ -216,6 +269,19 @@ public class InventoryStockServiceImpl implements InventoryStockService {
     }
 
     // ======================== PRIVATE HELPERS ========================
+    private void checkAndUpdateLocationIsFull(Long locationId) {
+        boolean hasOtherStock = stockRepository.findByLocation_Id(locationId)
+                .stream().anyMatch(s -> s.getQuantity() > 0);
+        if (!hasOtherStock) {
+            StorageLocation loc = locationRepository.findById(locationId)
+                    .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại: " + locationId));
+            if (loc.isFull()) {
+                loc.setFull(false);
+                locationRepository.save(loc);
+            }
+        }
+    }
+
     private InventoryStock buildNewStock(Long productId, Long locationId, String batchNo) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại: " + productId));

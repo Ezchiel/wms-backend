@@ -101,8 +101,11 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập kho!"));
 
         // check status
+        if (receipt.getStatus() == ReceiptStatus.CANCELLED) {
+            throw new RuntimeException("Phiếu nhập kho đã bị huỷ, không thể xác nhận!");
+        }
         if (receipt.getStatus() != ReceiptStatus.EXPECTED) {
-            throw new RuntimeException("Chỉ có thể xác nhận phiếu đang ở trạng thái EXPECTED!");
+            throw new RuntimeException("Chỉ có thể xác nhận phiếu đang ở trạng thái EXPECTED! Trạng thái hiện tại: " + receipt.getStatus());
         }
 
         // check details
@@ -144,7 +147,14 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
         // Update counted quantity
         Integer currentCounted = detail.getCountedQuantity() != null ? detail.getCountedQuantity() : 0;
-        detail.setCountedQuantity(currentCounted + request.getCountedQuantity());
+        int newCounted = currentCounted + request.getCountedQuantity();
+        if (newCounted > detail.getQuantity()) {
+            throw new RuntimeException(
+                    "Số lượng kiểm đếm (" + newCounted + ") vượt quá số lượng đặt hàng ("
+                    + detail.getQuantity() + ") cho sản phẩm: " + detail.getProduct().getProductName()
+            );
+        }
+        detail.setCountedQuantity(newCounted);
         detailRepository.save(detail);
 
         // Create new LPN
@@ -170,31 +180,25 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
         String currentBatchNo = lpn.getBatchNo();
         String currentSerialNumber = request.getSerialNumber();
 
-        // Check if this product is already available at the stage
-        InventoryStock stagingStock = stockRepository
-                .findByProductAndLocationAndBatchNoAndSerialNumber(detail.getProduct(), stagingLocation, currentBatchNo, currentSerialNumber)
-                .orElseGet(() -> InventoryStock.builder()
-                        .product(detail.getProduct())
-                        .location(stagingLocation)
-                        .quantity(0)
-                        .batchNo(currentBatchNo)
-                        .expiryDate(lpn.getExpiryDate())
-                        .serialNumber(currentSerialNumber)
-                        .build());
-
         // check if there is a serial number
         if (currentSerialNumber != null && !currentSerialNumber.isEmpty()) {
             if (request.getCountedQuantity() != 1) {
                 throw new RuntimeException("Lỗi: Sản phẩm quản lý theo Serial chỉ được phép nhập số lượng 1 cho mỗi lần quét!");
             }
-            if (stagingStock.getQuantity() > 0) {
-                throw new RuntimeException("Lỗi: Số Serial " + currentSerialNumber + " này đã được kiểm đếm hoặc đã tồn tại trong hệ thống!");
-            }
         }
 
         // Add the counted quantity to the stage
-        stagingStock.setQuantity(stagingStock.getQuantity() + request.getCountedQuantity());
-        stockRepository.save(stagingStock);
+        stockService.addStock(
+                InventoryStockRequestDTO.builder()
+                        .productId(detail.getProduct().getId())
+                        .locationId(stagingLocation.getId())
+                        .quantity(request.getCountedQuantity())
+                        .batchNo(currentBatchNo)
+                        .expiryDate(lpn.getExpiryDate())
+                        .serialNumber(currentSerialNumber)
+                        .build(),
+                receipt.getReceiptCode()
+        );
 
         // Check that all the details on the receipt have been counted
         InventoryReceipt freshReceipt = receiptRepository.findById(receiptId)
