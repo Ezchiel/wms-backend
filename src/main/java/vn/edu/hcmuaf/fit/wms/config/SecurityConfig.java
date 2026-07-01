@@ -78,18 +78,12 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // configuration.setAllowedOrigins(List.of("http://localhost:5173"));
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:5173",
                 "https://localhost:5173",
-                "http://192.168.30.104:5173",
-                "https://192.168.30.104:5173",
-                "http://10.50.224.215:5173",
-                "https://10.50.224.215:5173",
-                "http://10.121.243.133:5173",
-                "https://10.121.243.133:5173",
-                "https://172.21.58.133:5173",
-                "https://10.50.11.12:5173"));
+                "https://10.251.137.133:5173",
+                "https://192.168.30.104:5173"
+        ));
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 

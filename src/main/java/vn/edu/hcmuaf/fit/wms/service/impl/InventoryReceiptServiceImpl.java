@@ -308,6 +308,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                         })
                         .collect(Collectors.toList()))
                 .totalAmount(totalAmount)
+                .assignedTo(entity.getAssignedTo())
                 .build();
     }
 

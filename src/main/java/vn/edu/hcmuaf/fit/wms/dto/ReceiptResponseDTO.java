@@ -23,6 +23,7 @@ public class ReceiptResponseDTO {
     private String createdBy;
     private List<ReceiptDetailResponseDTO> details;
     private BigDecimal totalAmount;
+    private String assignedTo;
 
     @Getter
     @Setter
