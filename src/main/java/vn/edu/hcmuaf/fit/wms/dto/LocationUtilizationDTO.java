@@ -5,5 +5,7 @@ public record LocationUtilizationDTO(
         int totalLocations,
         int fullLocations,
         int emptyLocations,
+        long totalQuantity,
+        long totalCapacity,
         double utilizationRate
 ) {}

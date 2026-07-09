@@ -36,11 +36,20 @@ public class PutawayServiceImpl implements PutawayService {
         StorageLocation targetLocation = storageLocationRepository.findOptimalLocationForPutaway(productId)
                 .orElseThrow(() -> new RuntimeException("Kho đã đầy, không tìm thấy vị trí cất hàng!"));
 
+        // Tính available capacity theo đúng sản phẩm (tránh trộn đơn vị)
+        int currentQty = inventoryStockRepository.getCurrentQuantityByLocationAndProduct(
+                targetLocation.getId(), productId);
+        Integer availableCapacity = targetLocation.getMaxCapacity() != null
+                ? targetLocation.getMaxCapacity() - currentQty
+                : null;
+
         return PutawaySuggestionDTO.builder()
                 .lpnCode(lpnCode)
                 .productName(lpn.getProduct().getProductName())
                 .suggestedLocationCode(targetLocation.getBarcode())
                 .suggestedLocationId(targetLocation.getId())
+                .availableCapacity(availableCapacity)
+                .unit(lpn.getProduct().getUnit())
                 .build();
     }
 
@@ -91,10 +100,6 @@ public class PutawayServiceImpl implements PutawayService {
                         .build(),
                 "PUTAWAY-" + lpn.getLpnCode()
         );
-
-        // Cập nhật trạng thái vị trí đích
-        targetLocation.setFull(true);
-        storageLocationRepository.save(targetLocation);
 
         // Update LPN status
         lpn.setStatus(LpnStatus.STORED);

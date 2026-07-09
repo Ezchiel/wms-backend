@@ -9,8 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.wms.dto.StorageLocationRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.StorageLocationResponseDTO;
+import vn.edu.hcmuaf.fit.wms.entity.Product;
 import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
 import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
+import vn.edu.hcmuaf.fit.wms.repository.InventoryStockRepository;
+import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
 import vn.edu.hcmuaf.fit.wms.service.StorageLocationService;
 
@@ -25,6 +28,8 @@ import java.util.stream.Collectors;
 public class StorageLocationServiceImpl implements StorageLocationService {
 
     private final StorageLocationRepository locationRepository;
+    private final InventoryStockRepository stockRepository;
+    private final ProductRepository productRepository;
 
     @Override
     public Page<StorageLocationResponseDTO> getAllLocations(String keyword, String type, int page, int size, String sortBy, String sortDir) {
@@ -44,7 +49,10 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         }
 
         return locationRepository.searchLocations(keyword, false, locType, pageable)
-                .map(StorageLocationResponseDTO::fromEntity);
+                .map(location -> {
+                    int currentQty = locationRepository.getCurrentQuantity(location.getId());
+                    return buildDTO(location, currentQty);
+                });
     }
 
     @Override
@@ -65,21 +73,26 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         }
 
         return locationRepository.searchLocations(keyword, true, locType, pageable)
-                .map(StorageLocationResponseDTO::fromEntity);
+                .map(location -> {
+                    int currentQty = locationRepository.getCurrentQuantity(location.getId());
+                    return buildDTO(location, currentQty);
+                });
     }
 
     @Override
     public StorageLocationResponseDTO getLocationById(Long id) {
         StorageLocation location = locationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí lưu trữ với ID: " + id));
-        return StorageLocationResponseDTO.fromEntity(location);
+        int currentQty = locationRepository.getCurrentQuantity(id);
+        return buildDTO(location, currentQty);
     }
 
     @Override
     public StorageLocationResponseDTO getLocationByBarcode(String barcode) {
         StorageLocation location = locationRepository.findByBarcode(barcode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí với mã vạch: " + barcode));
-        return StorageLocationResponseDTO.fromEntity(location);
+        int currentQty = locationRepository.getCurrentQuantity(location.getId());
+        return buildDTO(location, currentQty);
     }
 
     @Override
@@ -87,8 +100,11 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         if (locationRepository.existsByBarcode(dto.barcode())) {
             throw new RuntimeException("Mã vạch vị trí đã tồn tại!");
         }
+        if (dto.maxCapacity() != null && dto.maxCapacity() <= 0) {
+            throw new RuntimeException("Sức chứa tối đa phải lớn hơn 0!");
+        }
         StorageLocation location = dto.toEntity();
-        return StorageLocationResponseDTO.fromEntity(locationRepository.save(location));
+        return StorageLocationResponseDTO.fromEntity(locationRepository.save(location), 0);
     }
 
     @Override
@@ -96,11 +112,19 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         StorageLocation existingLocation = locationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí lưu trữ với ID: " + id));
 
+        int currentQty = locationRepository.getCurrentQuantity(id);
+        if (dto.maxCapacity() != null && dto.maxCapacity() < currentQty) {
+            throw new RuntimeException("Sức chứa tối đa mới không thể nhỏ hơn tồn kho thực tế hiện tại (" + currentQty + ")!");
+        }
+        if (dto.maxCapacity() != null && dto.maxCapacity() <= 0) {
+            throw new RuntimeException("Sức chứa tối đa phải lớn hơn 0!");
+        }
+
         existingLocation.setZone(dto.zone());
         existingLocation.setRack(dto.rack());
         existingLocation.setShelf(dto.shelf());
         existingLocation.setDescription(dto.description());
-        existingLocation.setFull(dto.isFull());
+        existingLocation.setMaxCapacity(dto.maxCapacity());
 
         if (dto.locationType() != null) {
             existingLocation.setLocationType(dto.locationType());
@@ -112,7 +136,8 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         }
         existingLocation.setBarcode(dto.barcode());
 
-        return StorageLocationResponseDTO.fromEntity(locationRepository.save(existingLocation));
+        StorageLocation saved = locationRepository.save(existingLocation);
+        return buildDTO(saved, currentQty);
     }
 
     @Override
@@ -135,6 +160,9 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             if (!uniqueBarcodes.add(dto.barcode())) {
                 throw new RuntimeException("Lỗi: File import chứa mã vạch trùng lặp (" + dto.barcode() + ")");
             }
+            if (dto.maxCapacity() != null && dto.maxCapacity() <= 0) {
+                throw new RuntimeException("Sức chứa tối đa phải lớn hơn 0 (Mã vạch: " + dto.barcode() + ")!");
+            }
         }
 
         // Check duplicate in Database
@@ -150,7 +178,32 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         List<StorageLocation> locations = dtos.stream().map(StorageLocationRequestDTO::toEntity).toList();
         return locationRepository.saveAll(locations)
                 .stream()
-                .map(StorageLocationResponseDTO::fromEntity)
+                .map(location -> StorageLocationResponseDTO.fromEntity(location, 0))
                 .toList();
+    }
+
+    // ======================== PRIVATE HELPERS ========================
+
+    /**
+     * Xây dựng DTO đầy đủ: tính currentQty, tra cứu sản phẩm đang khóa vị trí và đơn vị của nó.
+     * Vị trí trống (không có sản phẩm nào với quantity > 0) → lockedProductId/Name/unit = null.
+     */
+    private StorageLocationResponseDTO buildDTO(StorageLocation location, int currentQty) {
+        List<Long> occupyingIds = stockRepository.findDistinctOccupyingProductIds(location.getId());
+
+        Long lockedProductId = null;
+        String lockedProductName = null;
+        String unit = null;
+
+        if (!occupyingIds.isEmpty()) {
+            lockedProductId = occupyingIds.get(0);
+            Product lockedProduct = productRepository.findById(lockedProductId).orElse(null);
+            if (lockedProduct != null) {
+                lockedProductName = lockedProduct.getProductName();
+                unit = lockedProduct.getUnit();
+            }
+        }
+
+        return StorageLocationResponseDTO.fromEntity(location, currentQty, lockedProductId, lockedProductName, unit);
     }
 }

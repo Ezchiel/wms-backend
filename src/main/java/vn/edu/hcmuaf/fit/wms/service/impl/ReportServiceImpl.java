@@ -192,14 +192,16 @@ public class ReportServiceImpl implements ReportService {
         return rows.stream().map(row -> {
             String zone = (String) row[0];
             int total = ((Number) row[1]).intValue();
-            int full  = ((Number) row[2]).intValue();
-            int empty = ((Number) row[3]).intValue();
+            long totalQuantity = ((Number) row[2]).longValue();
+            long totalCapacity = ((Number) row[3]).longValue();
+            int full  = ((Number) row[4]).intValue();
+            int empty = ((Number) row[5]).intValue();
 
-            double rate = (total > 0)
-                    ? Math.round((double) full / total * 10000.0) / 100.0
+            double rate = (totalCapacity > 0)
+                    ? Math.round((double) totalQuantity / totalCapacity * 10000.0) / 100.0
                     : 0.0;
 
-            return new LocationUtilizationDTO(zone, total, full, empty, rate);
+            return new LocationUtilizationDTO(zone, total, full, empty, totalQuantity, totalCapacity, rate);
         }).collect(Collectors.toList());
     }
 

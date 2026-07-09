@@ -44,6 +44,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                     .shelf("01")
                     .description("Khu vực nhận hàng mặc định của hệ thống")
                     .locationType(LocationType.RECEIVING_DOCK)
+                    .maxCapacity(null)
                     .build());
         }
 
@@ -56,6 +57,7 @@ public class DatabaseInitializer implements CommandLineRunner {
                     .shelf("01")
                     .description("Khu vực xuất hàng mặc định của hệ thống")
                     .locationType(LocationType.SHIPPING_DOCK)
+                    .maxCapacity(null)
                     .build());
         }
     }

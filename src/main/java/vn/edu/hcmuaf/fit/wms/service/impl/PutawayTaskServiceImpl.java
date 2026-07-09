@@ -136,10 +136,6 @@ public class PutawayTaskServiceImpl implements PutawayTaskService {
                 "PUTAWAY-" + lpn.getLpnCode()
         );
 
-        // Mark target location as full
-        targetLocation.setFull(true);
-        storageLocationRepository.save(targetLocation);
-
         // Update LPN status
         lpn.setStatus(LpnStatus.STORED);
         lpnRepository.save(lpn);

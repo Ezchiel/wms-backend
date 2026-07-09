@@ -18,6 +18,34 @@ import java.util.Optional;
 public interface InventoryStockRepository extends JpaRepository<InventoryStock, Long> {
     boolean existsBySerialNumber(String serialNumber);
 
+    @Query("SELECT COALESCE(SUM(s.quantity), 0) FROM InventoryStock s WHERE s.location.id = :locationId")
+    int getCurrentQuantityByLocation(@Param("locationId") Long locationId);
+
+    /**
+     * Lấy danh sách productId đang chiếm vị trí (quantity > 0) với khóa PESSIMISTIC_WRITE.
+     * Dùng để tránh race-condition khi 2 giao dịch putaway cùng đọc vị trí trống.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT DISTINCT s.product.id FROM InventoryStock s " +
+           "WHERE s.location.id = :locationId AND s.quantity > 0")
+    List<Long> findDistinctOccupyingProductIdsWithLock(@Param("locationId") Long locationId);
+
+    /**
+     * Lấy danh sách productId đang chiếm vị trí (quantity > 0) không dùng khóa (cho đọc DTO/thông tin).
+     */
+    @Query("SELECT DISTINCT s.product.id FROM InventoryStock s " +
+           "WHERE s.location.id = :locationId AND s.quantity > 0")
+    List<Long> findDistinctOccupyingProductIds(@Param("locationId") Long locationId);
+
+    /**
+     * Tổng tồn kho đúng sản phẩm tại vị trí — dùng thay cho getCurrentQuantityByLocation
+     * trong addStock() để kiểm tra capacity chính xác theo đơn vị của sản phẩm đang xét.
+     */
+    @Query("SELECT COALESCE(SUM(s.quantity), 0) FROM InventoryStock s " +
+           "WHERE s.location.id = :locationId AND s.product.id = :productId")
+    int getCurrentQuantityByLocationAndProduct(@Param("locationId") Long locationId,
+                                               @Param("productId") Long productId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM InventoryStock s WHERE s.product.id = :productId AND s.location.id = :locationId")
     List<InventoryStock> findByProduct_IdAndLocation_IdWithLock(@Param("productId") Long productId, @Param("locationId") Long locationId);

@@ -33,6 +33,9 @@ public class StorageLocation {
     @Column(name = "is_full")
     private boolean isFull = false;
 
+    @Column(name = "max_capacity")
+    private Integer maxCapacity;
+
     @Column(name = "path_sequence")
     private Integer pathSequence;
 

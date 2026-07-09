@@ -9,7 +9,7 @@ public record StorageLocationRequestDTO(
     String shelf,
     String barcode,
     String description,
-    boolean isFull,
+    Integer maxCapacity,
     Integer pathSequence,
     LocationType locationType
 ) {
@@ -20,7 +20,7 @@ public record StorageLocationRequestDTO(
                 .shelf(this.shelf)
                 .barcode(this.barcode)
                 .description(this.description)
-                .isFull(this.isFull)
+                .maxCapacity(this.maxCapacity)
                 .pathSequence(this.pathSequence)
                 .locationType(this.locationType != null ? this.locationType : LocationType.STORAGE)
                 .build();

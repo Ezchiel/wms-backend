@@ -9,7 +9,9 @@ import vn.edu.hcmuaf.fit.wms.entity.InventoryStock;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryTransaction;
 import vn.edu.hcmuaf.fit.wms.entity.Product;
 import vn.edu.hcmuaf.fit.wms.entity.StorageLocation;
+import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.TransactionType;
+import vn.edu.hcmuaf.fit.wms.exception.LocationProductMismatchException;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryStockRepository;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryTransactionRepository;
 import vn.edu.hcmuaf.fit.wms.repository.ProductRepository;
@@ -38,6 +40,37 @@ public class InventoryStockServiceImpl implements InventoryStockService {
 
         StorageLocation location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
+
+        // Ràng buộc: 1 vị trí STORAGE chỉ chứa 1 sản phẩm tại một thời điểm
+        if (location.getLocationType() == LocationType.STORAGE) {
+            List<Long> occupyingProductIds =
+                    stockRepository.findDistinctOccupyingProductIdsWithLock(location.getId());
+
+            boolean occupiedByOther = occupyingProductIds.stream()
+                    .anyMatch(id -> !id.equals(request.getProductId()));
+
+            if (occupiedByOther) {
+                Product occupying = productRepository.findById(occupyingProductIds.get(0)).orElse(null);
+                throw new LocationProductMismatchException(
+                    "Vị trí \"" + location.getBarcode() + "\" hiện đang chứa sản phẩm \""
+                    + (occupying != null ? occupying.getProductName() : occupyingProductIds.get(0))
+                    + "\". Không thể cất thêm sản phẩm \"" + product.getProductName()
+                    + "\" vào vị trí này."
+                );
+            }
+        }
+
+        // Kiểm tra capacity theo đúng sản phẩm đang xét (tránh trộn đơn vị)
+        int currentQty = stockRepository.getCurrentQuantityByLocationAndProduct(
+                location.getId(), request.getProductId());
+        if (location.getMaxCapacity() != null
+                && currentQty + request.getQuantity() > location.getMaxCapacity()) {
+            String unit = product.getUnit() != null ? " " + product.getUnit() : "";
+            throw new RuntimeException(
+                "Vị trí \"" + location.getBarcode() + "\" không đủ chỗ chứa: còn trống "
+                + (location.getMaxCapacity() - currentQty) + unit
+                + ", cần " + request.getQuantity() + unit);
+        }
 
         // Case 1: serial number
         if (request.getSerialNumber() != null && !request.getSerialNumber().trim().isEmpty()) {
@@ -115,7 +148,6 @@ public class InventoryStockServiceImpl implements InventoryStockService {
             // if quantity = 0 -> delete stock
             if (stock.getQuantity() == 0) {
                 stockRepository.delete(stock);
-                checkAndUpdateLocationIsFull(locationId);
             } else {
                 stockRepository.save(stock);
             }
@@ -162,7 +194,6 @@ public class InventoryStockServiceImpl implements InventoryStockService {
             // if quantity = 0 -> delete stock
             if (stock.getQuantity() == 0) {
                 stockRepository.delete(stock);
-                checkAndUpdateLocationIsFull(locationId);
             } else {
                 stockRepository.save(stock);
             }
@@ -200,7 +231,6 @@ public class InventoryStockServiceImpl implements InventoryStockService {
 
         if (actualQuantity == 0 && stock.getId() != null) {
             stockRepository.delete(stock);
-            checkAndUpdateLocationIsFull(locationId);
         } else {
             stockRepository.save(stock);
         }
@@ -269,18 +299,6 @@ public class InventoryStockServiceImpl implements InventoryStockService {
     }
 
     // ======================== PRIVATE HELPERS ========================
-    private void checkAndUpdateLocationIsFull(Long locationId) {
-        boolean hasOtherStock = stockRepository.findByLocation_Id(locationId)
-                .stream().anyMatch(s -> s.getQuantity() > 0);
-        if (!hasOtherStock) {
-            StorageLocation loc = locationRepository.findById(locationId)
-                    .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại: " + locationId));
-            if (loc.isFull()) {
-                loc.setFull(false);
-                locationRepository.save(loc);
-            }
-        }
-    }
 
     private InventoryStock buildNewStock(Long productId, Long locationId, String batchNo) {
         Product product = productRepository.findById(productId)
