@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.wms.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -8,10 +9,13 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
 import vn.edu.hcmuaf.fit.wms.dto.CountAndLabelRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.CountAndLabelResponseDTO;
+import vn.edu.hcmuaf.fit.wms.dto.OcrReceiptResultDTO;
+import vn.edu.hcmuaf.fit.wms.dto.OcrScanRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.ReceiptRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.ReceiptResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
+import vn.edu.hcmuaf.fit.wms.service.OcrReceiptService;
 
 import java.util.List;
 import java.util.Objects;
@@ -23,6 +27,17 @@ import java.util.Objects;
 public class InventoryReceiptController {
 
         private final InventoryReceiptService receiptService;
+        private final OcrReceiptService ocrReceiptService;
+
+        @Operation(summary = "OCR phiếu nhập kho bằng Gemini Vision",
+                   description = "Nhận ảnh base64, trích xuất thông tin phiếu nhập kho bằng AI. Không ghi DB.")
+        @PostMapping("/ocr-scan")
+        public ResponseEntity<ApiResponse<OcrReceiptResultDTO>> ocrScan(
+                        @RequestBody OcrScanRequestDTO requestDTO) {
+                return ResponseEntity.ok(ApiResponse.success(
+                                "Phân tích ảnh phiếu nhập kho thành công",
+                                ocrReceiptService.scanReceipt(requestDTO)));
+        }
 
         @PostMapping
         public ResponseEntity<ApiResponse<ReceiptResponseDTO>> createReceipt(

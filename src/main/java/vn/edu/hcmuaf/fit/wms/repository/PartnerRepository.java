@@ -14,6 +14,7 @@ import java.util.List;
 @Repository
 public interface PartnerRepository extends JpaRepository<Partner, Long> {
     List<Partner> findByType(PartnerType type);
+    List<Partner> findByTypeOrderByName(PartnerType type);
     boolean existsByPhone(String phone);
 
     @Query("SELECT p FROM Partner p WHERE " +
