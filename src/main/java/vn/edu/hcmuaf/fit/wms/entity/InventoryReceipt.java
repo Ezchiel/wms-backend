@@ -35,7 +35,7 @@ public class InventoryReceipt {
 
     private String notes;
 
-    @OneToMany(mappedBy = "inventoryReceipt", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "inventoryReceipt", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<InventoryReceiptDetail> details;
 
     @Column(name = "created_by")
@@ -46,5 +46,11 @@ public class InventoryReceipt {
 
     @Column(name = "assigned_to")
     private String assignedTo;
+
+    @Column(name = "scanned_by")
+    private String scannedBy;
+
+    @Column(name = "scanned_at")
+    private LocalDateTime scannedAt;
 }
 

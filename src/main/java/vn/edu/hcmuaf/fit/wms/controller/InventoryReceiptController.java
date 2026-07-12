@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
@@ -32,6 +33,7 @@ public class InventoryReceiptController {
         @Operation(summary = "OCR phiếu nhập kho bằng Gemini Vision",
                    description = "Nhận ảnh base64, trích xuất thông tin phiếu nhập kho bằng AI. Không ghi DB.")
         @PostMapping("/ocr-scan")
+        @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
         public ResponseEntity<ApiResponse<OcrReceiptResultDTO>> ocrScan(
                         @RequestBody OcrScanRequestDTO requestDTO) {
                 return ResponseEntity.ok(ApiResponse.success(
@@ -94,6 +96,25 @@ public class InventoryReceiptController {
                 return ResponseEntity.ok(ApiResponse.success(
                                 "Đã kiểm đếm và tạo lệnh in tem thành công",
                                 receiptService.countAndLabel(receiptId, detailId, requestDTO)));
+        }
+
+        @PostMapping("/draft")
+        @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+        public ResponseEntity<ApiResponse<ReceiptResponseDTO>> createDraftReceipt(
+                        @RequestBody ReceiptRequestDTO requestDTO) {
+                return ResponseEntity.ok(ApiResponse.success(
+                                "Tạo phiếu nháp thành công",
+                                receiptService.createDraftReceipt(requestDTO)));
+        }
+
+        @PutMapping("/draft/{id}/approve")
+        @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+        public ResponseEntity<ApiResponse<ReceiptResponseDTO>> approveDraftReceipt(
+                        @PathVariable Long id,
+                        @RequestBody ReceiptRequestDTO requestDTO) {
+                return ResponseEntity.ok(ApiResponse.success(
+                                "Duyệt phiếu nháp thành công",
+                                receiptService.approveDraftReceipt(id, requestDTO)));
         }
 }
 

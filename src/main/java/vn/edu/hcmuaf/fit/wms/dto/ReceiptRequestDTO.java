@@ -17,10 +17,11 @@ public class ReceiptRequestDTO {
     @Setter
     public static class ReceiptDetailDTO {
         private Long productId;
+        private String productNameRaw; // Tên sản phẩm thô từ OCR (khi productId chưa khớp)
         private Integer quantity;
         private Double unitPrice;
         private String batchNo;
-        private LocalDate expiryDate;
+        private String expiryDate;
         private String serialNumber;
     }
 }

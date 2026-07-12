@@ -20,4 +20,8 @@ public interface InventoryReceiptService {
     Page<ReceiptResponseDTO> getAvailableReceipts(int page, int size);
 
     ReceiptResponseDTO claimReceipt(Long receiptId, String username);
+
+    ReceiptResponseDTO createDraftReceipt(ReceiptRequestDTO requestDTO);
+
+    ReceiptResponseDTO approveDraftReceipt(Long receiptId, ReceiptRequestDTO requestDTO);
 }

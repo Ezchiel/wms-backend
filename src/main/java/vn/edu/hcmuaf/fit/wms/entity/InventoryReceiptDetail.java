@@ -24,8 +24,12 @@ public class InventoryReceiptDetail {
     private InventoryReceipt inventoryReceipt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = true)
     private Product product;
+
+    // Tên sản phẩm thô từ OCR - dùng khi product chưa được khớp (chỉ có trong DRAFT)
+    @Column(name = "product_name_raw", length = 255)
+    private String productNameRaw;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")

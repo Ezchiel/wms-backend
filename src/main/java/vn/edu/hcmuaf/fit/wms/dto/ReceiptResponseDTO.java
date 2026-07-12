@@ -24,6 +24,8 @@ public class ReceiptResponseDTO {
     private List<ReceiptDetailResponseDTO> details;
     private BigDecimal totalAmount;
     private String assignedTo;
+    private String scannedBy;
+    private LocalDateTime scannedAt;
 
     @Getter
     @Setter
@@ -33,6 +35,7 @@ public class ReceiptResponseDTO {
         private Long productId;
         private String productName;
         private String productCode;
+        private String productNameRaw; // Tên OCR thô khi product chưa được khớp (chỉ có trong DRAFT)
         private Integer quantity;
         private BigDecimal unitPrice;
         private String locationName;

@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,14 +20,18 @@ import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class InventoryReceiptServiceImpl implements InventoryReceiptService {
 
     private final InventoryReceiptRepository receiptRepository;
@@ -38,6 +43,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final LpnRepository lpnRepository;
     private final InventoryReceiptDetailRepository detailRepository;
     private final PutawayTaskRepository putawayTaskRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     public Page<ReceiptResponseDTO> getAllReceipts(String keyword, ReceiptStatus status, int page, int size, String sortBy, String sortDir) {
@@ -109,7 +115,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                     .quantity(dto.getQuantity())
                     .unitPrice(BigDecimal.valueOf(dto.getUnitPrice()))
                     .batchNo(dto.getBatchNo())
-                    .expiryDate(dto.getExpiryDate())
+                    .expiryDate(parseLocalDate(dto.getExpiryDate()))
                     .serialNumber(dto.getSerialNumber())
                     .build();
         }).collect(Collectors.toList());
@@ -266,6 +272,112 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public ReceiptResponseDTO createDraftReceipt(ReceiptRequestDTO requestDTO) {
+        Partner supplier = partnerRepository.findById(requestDTO.getSupplierId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Nhà cung cấp!"));
+
+        String currentUser = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getName();
+
+        InventoryReceipt receipt = InventoryReceipt.builder()
+                .receiptCode("PNK-DRAFT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                .supplier(supplier)
+                .receiptDate(LocalDateTime.now())
+                .status(ReceiptStatus.DRAFT)
+                .notes(requestDTO.getNotes())
+                .createdBy(currentUser)
+                .createdAt(LocalDateTime.now())
+                .scannedBy(currentUser)
+                .scannedAt(LocalDateTime.now())
+                .build();
+
+        List<InventoryReceiptDetail> details = requestDTO.getDetails().stream().map(dto -> {
+            // Trong DRAFT, productId có thể là null hoặc 0 (chưa khớp từ OCR)
+            Product product = null;
+            if (dto.getProductId() != null && dto.getProductId() > 0) {
+                product = productRepository.findById(dto.getProductId())
+                        .orElse(null); // Không throw – chỉ để null nếu không tìm thấy
+            }
+
+            return InventoryReceiptDetail.builder()
+                    .inventoryReceipt(receipt)
+                    .product(product)
+                    .productNameRaw(dto.getProductNameRaw()) // Lưu tên OCR thô khi product chưa khớp
+                    .location(null)
+                    .quantity(dto.getQuantity() != null ? dto.getQuantity() : 1)
+                    .unitPrice(dto.getUnitPrice() != null ? BigDecimal.valueOf(dto.getUnitPrice()) : BigDecimal.ZERO)
+                    .batchNo(dto.getBatchNo())
+                    .expiryDate(parseLocalDate(dto.getExpiryDate()))
+                    .serialNumber(dto.getSerialNumber())
+                    .build();
+        }).collect(Collectors.toList());
+
+        receipt.setDetails(details);
+
+        InventoryReceipt savedReceipt = receiptRepository.save(receipt);
+
+        try {
+            messagingTemplate.convertAndSend("/topic/drafts", "new_draft");
+        } catch (Exception e) {
+            // Ignore broadcast failure
+        }
+
+        return mapToDTO(savedReceipt);
+    }
+
+    @Override
+    @Transactional
+    public ReceiptResponseDTO approveDraftReceipt(Long receiptId, ReceiptRequestDTO requestDTO) {
+        InventoryReceipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nháp!"));
+
+        if (receipt.getStatus() != ReceiptStatus.DRAFT) {
+            throw new RuntimeException("Chỉ có thể duyệt phiếu đang ở trạng thái DRAFT! Trạng thái hiện tại: " + receipt.getStatus());
+        }
+
+        if (requestDTO.getDetails() == null || requestDTO.getDetails().isEmpty()) {
+            throw new RuntimeException("Không thể duyệt phiếu nhập không có danh sách sản phẩm chi tiết!");
+        }
+
+        Partner supplier = partnerRepository.findById(requestDTO.getSupplierId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Nhà cung cấp!"));
+        receipt.setSupplier(supplier);
+        receipt.setNotes(requestDTO.getNotes());
+
+        receipt.getDetails().clear();
+
+        List<InventoryReceiptDetail> newDetails = requestDTO.getDetails().stream().map(dto -> {
+            Product product = productRepository.findById(dto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
+
+            return InventoryReceiptDetail.builder()
+                    .inventoryReceipt(receipt)
+                    .product(product)
+                    .location(null)
+                    .quantity(dto.getQuantity())
+                    .unitPrice(dto.getUnitPrice() != null ? BigDecimal.valueOf(dto.getUnitPrice()) : BigDecimal.ZERO)
+                    .batchNo(dto.getBatchNo())
+                    .expiryDate(parseLocalDate(dto.getExpiryDate()))
+                    .serialNumber(dto.getSerialNumber())
+                    .build();
+        }).collect(Collectors.toList());
+
+        receipt.getDetails().addAll(newDetails);
+
+        receipt.setStatus(ReceiptStatus.RECEIVING);
+
+        InventoryReceipt savedReceipt = receiptRepository.save(receipt);
+
+        try {
+            messagingTemplate.convertAndSend("/topic/drafts", "approved_draft");
+        } catch (Exception e) {
+            // Ignore broadcast failure
+        }
+
+        return mapToDTO(savedReceipt);
+    }
+
     private ReceiptResponseDTO mapToDTO(InventoryReceipt entity) {
         if (entity == null) return null;
 
@@ -297,6 +409,7 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                                     .productId(detail.getProduct() != null ? detail.getProduct().getId() : null)
                                     .productName(detail.getProduct() != null ? detail.getProduct().getProductName() : null)
                                     .productCode(detail.getProduct() != null ? detail.getProduct().getProductCode() : null)
+                                    .productNameRaw(detail.getProductNameRaw()) // Tên OCR thô khi product chưa khớp
                                     .quantity(detail.getQuantity())
                                     .unitPrice(price)
                                     .totalPrice(price.multiply(qty))
@@ -309,7 +422,37 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
                         .collect(Collectors.toList()))
                 .totalAmount(totalAmount)
                 .assignedTo(entity.getAssignedTo())
+                .scannedBy(entity.getScannedBy())
+                .scannedAt(entity.getScannedAt())
                 .build();
+    }
+
+    private LocalDate parseLocalDate(String dateStr) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+
+        String cleaned = dateStr.trim();
+        
+        // 1. Try ISO format (yyyy-MM-dd)
+        try {
+            return LocalDate.parse(cleaned);
+        } catch (Exception e) {}
+
+        // 2. Try common formats
+        String[] patterns = {
+            "dd/MM/yyyy", "dd-MM-yyyy", "yyyy/MM/dd", "dd.MM.yyyy",
+            "d/M/yyyy", "d-M-yyyy", "yyyy.MM.dd", "yyyy-M-d", "d/M/yy", "dd/MM/yy"
+        };
+
+        for (String pattern : patterns) {
+            try {
+                return LocalDate.parse(cleaned, DateTimeFormatter.ofPattern(pattern));
+            } catch (Exception e) {}
+        }
+
+        log.warn("Không thể parse ngày hết hạn: {}", dateStr);
+        return null;
     }
 
     private String generateLpnCode() {

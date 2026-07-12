@@ -47,6 +47,9 @@ public class SecurityConfig {
                         // Public
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // WebSocket (both SockJS and native endpoints)
+                        .requestMatchers("/ws/**", "/ws-native/**").permitAll()
+
                         // Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
