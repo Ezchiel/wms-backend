@@ -126,4 +126,17 @@ public interface InventoryStockRepository extends JpaRepository<InventoryStock, 
            "GROUP BY p.id, p.productCode, p.productName " +
            "ORDER BY p.productCode")
     List<Object[]> getCurrentStockPerProduct(@Param("productId") Long productId);
+
+    @Query("SELECT COALESCE(SUM(s.quantity), 0) FROM InventoryStock s " +
+           "WHERE s.product.id = :productId " +
+           "AND s.location.locationType NOT IN (vn.edu.hcmuaf.fit.wms.entity.enums.LocationType.RECEIVING_DOCK, vn.edu.hcmuaf.fit.wms.entity.enums.LocationType.SHIPPING_DOCK)")
+    Integer getTotalAvailableStock(@Param("productId") Long productId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM InventoryStock s JOIN s.location l " +
+           "WHERE s.product.id = :productId " +
+           "AND s.quantity > 0 " +
+           "AND l.locationType NOT IN (vn.edu.hcmuaf.fit.wms.entity.enums.LocationType.RECEIVING_DOCK, vn.edu.hcmuaf.fit.wms.entity.enums.LocationType.SHIPPING_DOCK) " +
+           "AND (:batchNo IS NULL OR :batchNo = '' OR s.batchNo = :batchNo)")
+    List<InventoryStock> findStockForAllocationWithLock(@Param("productId") Long productId, @Param("batchNo") String batchNo);
 }

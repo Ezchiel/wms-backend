@@ -35,6 +35,9 @@ public class PickingTask {
     @JoinColumn(name = "location_id", nullable = false)
     private StorageLocation location;
 
+    @Column(name = "batch_no")
+    private String batchNo;
+
     @Column(name = "required_quantity", nullable = false)
     private Integer requiredQuantity;
 

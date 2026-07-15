@@ -16,8 +16,8 @@ public class IssueRequestDTO {
     @Setter
     public static class IssueDetailDTO {
         private Long productId;
-        private Long locationId;
+        private Long locationId; // optional: nullable khi hệ thống tự phân bổ vị trí
         private Integer quantity;
-        private String batchNo;
+        private String batchNo;  // optional: chỉ dùng khi bắt buộc xuất đúng lô này
     }
 }

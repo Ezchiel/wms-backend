@@ -8,11 +8,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import vn.edu.hcmuaf.fit.wms.dto.AllocationResultDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.*;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
-import vn.edu.hcmuaf.fit.wms.entity.enums.LocationType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.PickingTaskStatus;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryIssueRepository;
 import vn.edu.hcmuaf.fit.wms.repository.PartnerRepository;
@@ -21,6 +21,7 @@ import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
 import vn.edu.hcmuaf.fit.wms.repository.PickingTaskRepository;
 import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
+import vn.edu.hcmuaf.fit.wms.service.PickingAllocationService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,6 +38,7 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
     private final ProductRepository productRepository;
     private final StorageLocationRepository locationRepository;
     private final PickingTaskRepository pickingTaskRepository;
+    private final PickingAllocationService pickingAllocationService;
 
     @Override
     public Page<IssueResponseDTO> getAllIssues(String keyword, IssueStatus status,
@@ -68,28 +70,13 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         // Validate tồn kho trước khi tạo phiếu
         if (requestDTO.getDetails() != null) {
             for (IssueRequestDTO.IssueDetailDTO dto : requestDTO.getDetails()) {
-                StorageLocation loc = locationRepository.findById(dto.getLocationId())
-                        .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
-                if (loc.getLocationType() == LocationType.RECEIVING_DOCK
-                        || loc.getLocationType() == LocationType.SHIPPING_DOCK) {
-                    throw new RuntimeException(
-                            "Không được phép xuất kho từ vị trí loại: " + loc.getLocationType()
-                    );
-                }
-
-                Integer available;
-                if (dto.getBatchNo() != null && !dto.getBatchNo().trim().isEmpty()) {
-                    available = stockService.getCurrentStockQuantityByBatch(dto.getProductId(), dto.getLocationId(), dto.getBatchNo());
-                } else {
-                    available = stockService.getCurrentStockQuantity(dto.getProductId(), dto.getLocationId());
-                }
-
-                if (available == null || available < dto.getQuantity()) {
+                Integer totalAvailable = stockService.getTotalAvailableStock(dto.getProductId());
+                if (totalAvailable == null || totalAvailable < dto.getQuantity()) {
                     Product product = productRepository.findById(dto.getProductId())
                             .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
                     throw new RuntimeException(
                             "Không đủ tồn kho cho sản phẩm \"" + product.getProductName()
-                            + "\" tại vị trí đã chọn. Hiện có: " + (available != null ? available : 0)
+                            + "\". Tổng tồn kho hiện có: " + (totalAvailable != null ? totalAvailable : 0)
                             + ", yêu cầu: " + dto.getQuantity()
                     );
                 }
@@ -113,8 +100,11 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
         List<InventoryIssueDetail> details = requestDTO.getDetails().stream().map(dto -> {
             Product product = productRepository.findById(dto.getProductId())
                     .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
-            StorageLocation location = locationRepository.findById(dto.getLocationId())
-                    .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
+            StorageLocation location = null;
+            if (dto.getLocationId() != null && dto.getLocationId() > 0) {
+                location = locationRepository.findById(dto.getLocationId())
+                        .orElseThrow(() -> new RuntimeException("Vị trí không tồn tại"));
+            }
 
             return InventoryIssueDetail.builder()
                     .inventoryIssue(issue)
@@ -169,19 +159,26 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             throw new RuntimeException("Lệnh lấy hàng đã được tạo cho phiếu này!");
         }
 
-        // Tạo PickingTask cho từng dòng hàng, gắn assignedTo ngay
-        List<PickingTask> tasks = issue.getDetails().stream().map(detail ->
-            PickingTask.builder()
-                    .inventoryIssue(issue)
-                    .issueDetail(detail)
-                    .product(detail.getProduct())
-                    .location(detail.getLocation())
-                    .requiredQuantity(detail.getQuantity())
-                    .pickedQuantity(0)
-                    .status(PickingTaskStatus.PENDING)
-                    .assignedTo(username)
-                    .build()
-        ).collect(Collectors.toList());
+        // Tạo PickingTask cho từng dòng hàng thông qua PickingAllocationService (FEFO + pathSequence)
+        List<PickingTask> tasks = new java.util.ArrayList<>();
+        for (InventoryIssueDetail detail : issue.getDetails()) {
+            List<AllocationResultDTO> allocations = pickingAllocationService.allocate(
+                    detail.getProduct().getId(), detail.getQuantity(), detail.getBatchNo());
+
+            for (AllocationResultDTO a : allocations) {
+                tasks.add(PickingTask.builder()
+                        .inventoryIssue(issue)
+                        .issueDetail(detail)
+                        .product(detail.getProduct())
+                        .location(locationRepository.getReferenceById(a.getLocationId()))
+                        .batchNo(a.getBatchNo())
+                        .requiredQuantity(a.getQuantity())
+                        .pickedQuantity(0)
+                        .status(PickingTaskStatus.PENDING)
+                        .assignedTo(username)
+                        .build());
+            }
+        }
 
         pickingTaskRepository.saveAll(tasks);
 
@@ -219,34 +216,28 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
             }
         }
 
-        // Kiểm tra lại tồn kho tức thời trước khi thực hiện trừ kho thực tế
-        for (InventoryIssueDetail detail : issue.getDetails()) {
-            Integer available;
-            if (detail.getBatchNo() != null && !detail.getBatchNo().trim().isEmpty()) {
-                available = stockService.getCurrentStockQuantityByBatch(
-                        detail.getProduct().getId(), detail.getLocation().getId(), detail.getBatchNo());
-            } else {
-                available = stockService.getCurrentStockQuantity(
-                        detail.getProduct().getId(), detail.getLocation().getId());
-            }
-            if (available == null || available < detail.getQuantity()) {
-                throw new RuntimeException(
-                        "Không đủ tồn kho tại thời điểm xuất kho cho sản phẩm: "
-                        + detail.getProduct().getProductName()
-                        + (detail.getBatchNo() != null ? " (Lô: " + detail.getBatchNo() + ")" : "")
+        // Trừ kho dựa trên các PickingTask đã hoàn thành (đúng location + batchNo + pickedQuantity)
+        for (PickingTask task : tasks) {
+            if (task.getStatus() == PickingTaskStatus.DONE && task.getPickedQuantity() != null && task.getPickedQuantity() > 0) {
+                Integer available = stockService.getCurrentStockQuantityByBatch(
+                        task.getProduct().getId(), task.getLocation().getId(), task.getBatchNo());
+                if (available == null || available < task.getPickedQuantity()) {
+                    throw new RuntimeException(
+                            "Không đủ tồn kho tại thời điểm xuất kho cho sản phẩm: "
+                            + task.getProduct().getProductName()
+                            + " tại vị trí: " + task.getLocation().getBarcode()
+                            + (task.getBatchNo() != null ? " (Lô: " + task.getBatchNo() + ")" : "")
+                    );
+                }
+                stockService.deductStock(
+                        task.getProduct().getId(),
+                        task.getLocation().getId(),
+                        task.getPickedQuantity(),
+                        task.getBatchNo(),
+                        null,
+                        issue.getIssueCode()
                 );
             }
-        }
-
-        for (InventoryIssueDetail detail : issue.getDetails()) {
-            stockService.deductStock(
-                    detail.getProduct().getId(),
-                    detail.getLocation().getId(),
-                    detail.getQuantity(),
-                    detail.getBatchNo(),
-                    null,
-                    issue.getIssueCode()
-            );
         }
 
         issue.setStatus(IssueStatus.COMPLETED);
@@ -295,9 +286,9 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
                                 .productId(detail.getProduct().getId())
                                 .productName(detail.getProduct().getProductName())
                                 .productCode(detail.getProduct().getProductCode())
-                                .locationId(detail.getLocation().getId())
-                                .locationBarcode(detail.getLocation().getBarcode())
-                                .locationDescription(detail.getLocation().getDescription())
+                                .locationId(detail.getLocation() != null ? detail.getLocation().getId() : null)
+                                .locationBarcode(detail.getLocation() != null ? detail.getLocation().getBarcode() : null)
+                                .locationDescription(detail.getLocation() != null ? detail.getLocation().getDescription() : null)
                                 .quantity(detail.getQuantity())
                                 .batchNo(detail.getBatchNo())
                                 .build())

@@ -20,6 +20,7 @@ public class PickingTaskResponseDTO {
     private Long locationId;
     private String locationBarcode;
     private String locationDescription;
+    private String batchNo;
     private Integer requiredQuantity;
     private Integer pickedQuantity;
     private PickingTaskStatus status;

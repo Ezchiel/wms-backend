@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import vn.edu.hcmuaf.fit.wms.dto.AllocationResultDTO;
 import vn.edu.hcmuaf.fit.wms.dto.PickingConfirmRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.PickingTaskResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.*;
@@ -15,9 +16,11 @@ import vn.edu.hcmuaf.fit.wms.entity.enums.PickingTaskStatus;
 import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
 import vn.edu.hcmuaf.fit.wms.repository.InventoryIssueRepository;
 import vn.edu.hcmuaf.fit.wms.repository.PickingTaskRepository;
+import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
 import vn.edu.hcmuaf.fit.wms.repository.UserRepository;
 import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
+import vn.edu.hcmuaf.fit.wms.service.PickingAllocationService;
 import vn.edu.hcmuaf.fit.wms.service.PickingService;
 
 import java.time.LocalDateTime;
@@ -33,6 +36,8 @@ public class PickingServiceImpl implements PickingService {
     private final UserRepository userRepository;
     private final InventoryIssueService issueService;
     private final InventoryStockService stockService;
+    private final StorageLocationRepository locationRepository;
+    private final PickingAllocationService pickingAllocationService;
 
     @Override
     @Transactional
@@ -49,18 +54,25 @@ public class PickingServiceImpl implements PickingService {
             throw new RuntimeException("Lệnh lấy hàng đã được tạo cho phiếu này!");
         }
 
-        // Tạo picking tasks
-        List<PickingTask> tasks = issue.getDetails().stream().map(detail -> {
-            return PickingTask.builder()
-                    .inventoryIssue(issue)
-                    .issueDetail(detail)
-                    .product(detail.getProduct())
-                    .location(detail.getLocation())
-                    .requiredQuantity(detail.getQuantity())
-                    .pickedQuantity(0)
-                    .status(PickingTaskStatus.PENDING)
-                    .build();
-        }).collect(Collectors.toList());
+        // Tạo picking tasks thông qua PickingAllocationService (FEFO + pathSequence)
+        List<PickingTask> tasks = new java.util.ArrayList<>();
+        for (InventoryIssueDetail detail : issue.getDetails()) {
+            List<AllocationResultDTO> allocations = pickingAllocationService.allocate(
+                    detail.getProduct().getId(), detail.getQuantity(), detail.getBatchNo());
+
+            for (AllocationResultDTO a : allocations) {
+                tasks.add(PickingTask.builder()
+                        .inventoryIssue(issue)
+                        .issueDetail(detail)
+                        .product(detail.getProduct())
+                        .location(locationRepository.getReferenceById(a.getLocationId()))
+                        .batchNo(a.getBatchNo())
+                        .requiredQuantity(a.getQuantity())
+                        .pickedQuantity(0)
+                        .status(PickingTaskStatus.PENDING)
+                        .build());
+            }
+        }
 
         pickingTaskRepository.saveAll(tasks);
 
@@ -172,6 +184,7 @@ public class PickingServiceImpl implements PickingService {
                 .locationId(task.getLocation().getId())
                 .locationBarcode(task.getLocation().getBarcode())
                 .locationDescription(task.getLocation().getDescription())
+                .batchNo(task.getBatchNo())
                 .requiredQuantity(task.getRequiredQuantity())
                 .pickedQuantity(task.getPickedQuantity())
                 .status(task.getStatus())

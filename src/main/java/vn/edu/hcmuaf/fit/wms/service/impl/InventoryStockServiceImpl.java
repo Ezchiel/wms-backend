@@ -344,4 +344,9 @@ public class InventoryStockServiceImpl implements InventoryStockService {
                 .serialNumber(stock.getSerialNumber())
                 .build();
     }
+
+    @Override
+    public Integer getTotalAvailableStock(Long productId) {
+        return stockRepository.getTotalAvailableStock(productId);
+    }
 }
