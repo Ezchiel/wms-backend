@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.hcmuaf.fit.wms.common.ApiResponse;
+import vn.edu.hcmuaf.fit.wms.dto.UserProfileUpdateDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
@@ -88,5 +89,19 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> unlockUser(@PathVariable Integer id) {
         userService.unlockUser(id);
         return ResponseEntity.ok(ApiResponse.success("Mở khoá tài khoản thành công", ""));
+    }
+
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> getMyProfile() {
+        UserResponseDTO profile = userService.getMyProfile();
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin cá nhân thành công", profile));
+    }
+
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> updateMyProfile(@Valid @RequestBody UserProfileUpdateDTO requestDTO) {
+        UserResponseDTO updatedProfile = userService.updateMyProfile(requestDTO);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật thông tin cá nhân thành công", updatedProfile));
     }
 }

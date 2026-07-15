@@ -9,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import vn.edu.hcmuaf.fit.wms.dto.UserProfileUpdateDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
@@ -76,7 +77,13 @@ public class UserServiceImpl implements UserService {
             user.setRole(requestDTO.getRole());
         }
 
-        // password encoder
+        // password validation & encoder
+        if (requestDTO.getPassword() == null || requestDTO.getPassword().trim().isEmpty()) {
+            throw new RuntimeException("Mật khẩu không được để trống!");
+        }
+        if (requestDTO.getPassword().length() < 6) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 6 ký tự!");
+        }
         String encodedPassword = passwordEncoder.encode(requestDTO.getPassword());
         user.setPassword(encodedPassword);
 
@@ -124,7 +131,10 @@ public class UserServiceImpl implements UserService {
         }
 
         // check if there is a new password
-        if (requestDTO.getPassword() != null && !requestDTO.getPassword().isEmpty()) {
+        if (requestDTO.getPassword() != null && !requestDTO.getPassword().trim().isEmpty()) {
+            if (requestDTO.getPassword().length() < 6) {
+                throw new RuntimeException("Mật khẩu phải có ít nhất 6 ký tự!");
+            }
             String encodedPassword = passwordEncoder.encode(requestDTO.getPassword());
             targetUser.setPassword(encodedPassword);
         }
@@ -265,5 +275,34 @@ public class UserServiceImpl implements UserService {
                 .phone(user.getPhone())
                 .status(user.getStatus())
                 .build();
+    }
+
+    @Override
+    public UserResponseDTO getMyProfile() {
+        User currentUser = getCurrentLoggedInUser();
+        return mapToResponseDTO(currentUser);
+    }
+
+    @Override
+    public UserResponseDTO updateMyProfile(UserProfileUpdateDTO requestDTO) {
+        User currentUser = getCurrentLoggedInUser();
+
+        // check duplicate email (excluding current user)
+        if (!currentUser.getEmail().equals(requestDTO.getEmail()) && userRepository.existsByEmail(requestDTO.getEmail())) {
+            throw new RuntimeException("Email đã tồn tại trong hệ thống!");
+        }
+
+        currentUser.setFullName(requestDTO.getFullName());
+        currentUser.setEmail(requestDTO.getEmail());
+        currentUser.setPhone(requestDTO.getPhone());
+
+        // check if there is a new password
+        if (requestDTO.getPassword() != null && !requestDTO.getPassword().trim().isEmpty()) {
+            String encodedPassword = passwordEncoder.encode(requestDTO.getPassword());
+            currentUser.setPassword(encodedPassword);
+        }
+
+        User updatedUser = userRepository.save(currentUser);
+        return mapToResponseDTO(updatedUser);
     }
 }

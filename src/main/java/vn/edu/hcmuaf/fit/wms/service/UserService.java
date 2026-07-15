@@ -1,6 +1,7 @@
 package vn.edu.hcmuaf.fit.wms.service;
 
 import org.springframework.data.domain.Page;
+import vn.edu.hcmuaf.fit.wms.dto.UserProfileUpdateDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.UserResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.Role;
@@ -16,4 +17,6 @@ public interface UserService {
     void restoreUser(Integer id);
     void lockUser(Integer id);
     void unlockUser(Integer id);
+    UserResponseDTO getMyProfile();
+    UserResponseDTO updateMyProfile(UserProfileUpdateDTO requestDTO);
 }
