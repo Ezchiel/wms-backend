@@ -13,6 +13,7 @@ import vn.edu.hcmuaf.fit.wms.entity.Partner;
 import vn.edu.hcmuaf.fit.wms.entity.enums.PartnerType;
 import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 @Repository
@@ -21,8 +22,19 @@ public interface InventoryReceiptRepository extends JpaRepository<InventoryRecei
 
     @Query("SELECT r FROM InventoryReceipt r WHERE " +
             "(:status IS NULL OR r.status = :status) " +
-            "AND (:keyword IS NULL OR LOWER(r.receiptCode) LIKE LOWER(CONCAT('%', :keyword, '%'))) ")
-    Page<InventoryReceipt> searchInventoryReceipts(@Param("keyword") String keyword, @Param("status") ReceiptStatus status, Pageable pageable);
+            "AND (:keyword IS NULL OR LOWER(r.receiptCode) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "AND (:assignedTo IS NULL OR r.assignedTo = :assignedTo) " +
+            "AND (:unassigned = false OR r.assignedTo IS NULL) " +
+            "AND (:fromDate IS NULL OR CAST(r.createdAt AS date) >= :fromDate) " +
+            "AND (:toDate IS NULL OR CAST(r.createdAt AS date) <= :toDate)")
+    Page<InventoryReceipt> searchInventoryReceipts(
+            @Param("keyword") String keyword,
+            @Param("status") ReceiptStatus status,
+            @Param("assignedTo") String assignedTo,
+            @Param("unassigned") boolean unassigned,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable);
 
     @Query("SELECT r FROM InventoryReceipt r WHERE r.status = 'RECEIVING' AND r.assignedTo IS NULL")
     Page<InventoryReceipt> findAvailableReceipts(Pageable pageable);

@@ -46,13 +46,25 @@ public class InventoryReceiptServiceImpl implements InventoryReceiptService {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Override
-    public Page<ReceiptResponseDTO> getAllReceipts(String keyword, ReceiptStatus status, int page, int size, String sortBy, String sortDir) {
+    public Page<ReceiptResponseDTO> getAllReceipts(String keyword, ReceiptStatus status, String assignedFilter,
+            LocalDate fromDate, LocalDate toDate, int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase("asc")
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-        Page<InventoryReceipt> receiptsPage = receiptRepository.searchInventoryReceipts(keyword, status, pageable);
+        String assignedTo = null;
+        boolean unassigned = false;
+        if ("ME".equalsIgnoreCase(assignedFilter)) {
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                assignedTo = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
+        } else if ("UNASSIGNED".equalsIgnoreCase(assignedFilter)) {
+            unassigned = true;
+        }
+
+        Page<InventoryReceipt> receiptsPage = receiptRepository.searchInventoryReceipts(
+                keyword, status, assignedTo, unassigned, fromDate, toDate, pageable);
 
         return receiptsPage.map(this::mapToDTO);
     }

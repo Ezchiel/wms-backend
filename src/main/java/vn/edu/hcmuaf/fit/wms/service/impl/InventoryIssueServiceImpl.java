@@ -23,6 +23,7 @@ import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 import vn.edu.hcmuaf.fit.wms.service.PickingAllocationService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -193,6 +194,21 @@ public class InventoryIssueServiceImpl implements InventoryIssueService {
     public Page<IssueResponseDTO> getAvailableIssues(int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("issueDate").descending());
         return issueRepository.findAvailableIssues(pageable).map(this::mapToDTO);
+    }
+
+    @Override
+    public Page<IssueResponseDTO> getAvailableIssuesFiltered(String keyword, int page, int size,
+                                                              String sortBy, String sortDir,
+                                                              LocalDate fromDate, LocalDate toDate) {
+        Sort sort = sortDir.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        String kw = (keyword != null && keyword.isBlank()) ? null : keyword;
+
+        return issueRepository.findAvailableIssuesFiltered(kw, fromDate, toDate, pageable)
+                .map(this::mapToDTO);
     }
 
     @Override

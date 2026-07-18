@@ -5,6 +5,8 @@ import vn.edu.hcmuaf.fit.wms.dto.IssueRequestDTO;
 import vn.edu.hcmuaf.fit.wms.dto.IssueResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
 
+import java.time.LocalDate;
+
 public interface InventoryIssueService {
 
     Page<IssueResponseDTO> getAllIssues(String keyword, IssueStatus status,
@@ -20,7 +22,12 @@ public interface InventoryIssueService {
 
     Page<IssueResponseDTO> getAvailableIssues(int page, int size);
 
+    Page<IssueResponseDTO> getAvailableIssuesFiltered(String keyword, int page, int size,
+                                                       String sortBy, String sortDir,
+                                                       LocalDate fromDate, LocalDate toDate);
+
     IssueResponseDTO confirmIssue(Long issueId);
 
     IssueResponseDTO cancelIssue(Long issueId);
 }
+

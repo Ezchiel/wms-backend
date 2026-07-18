@@ -18,6 +18,7 @@ import vn.edu.hcmuaf.fit.wms.entity.enums.ReceiptStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryReceiptService;
 import vn.edu.hcmuaf.fit.wms.service.OcrReceiptService;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
@@ -53,13 +54,16 @@ public class InventoryReceiptController {
         public ResponseEntity<ApiResponse<List<ReceiptResponseDTO>>> getAllReceipts(
                         @RequestParam(required = false) String keyword,
                         @RequestParam(required = false) ReceiptStatus status,
+                        @RequestParam(required = false) String assignedFilter,
+                        @RequestParam(required = false) LocalDate fromDate,
+                        @RequestParam(required = false) LocalDate toDate,
                         @RequestParam(defaultValue = "1") int page,
                         @RequestParam(defaultValue = "10") int size,
                         @RequestParam(defaultValue = "createdAt") String sortBy,
                         @RequestParam(defaultValue = "desc") String sortDir) {
                 return ResponseEntity.ok(ApiResponse.success(
                                 "Lấy danh sách phiếu nhập kho thành công",
-                                receiptService.getAllReceipts(keyword, status, page, size, sortBy, sortDir)));
+                                receiptService.getAllReceipts(keyword, status, assignedFilter, fromDate, toDate, page, size, sortBy, sortDir)));
         }
 
         @GetMapping("/available")

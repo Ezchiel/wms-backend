@@ -13,6 +13,8 @@ import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryIssueService;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.time.LocalDate;
+
 @RestController
 @RequestMapping("/api/issues")
 @RequiredArgsConstructor
@@ -89,14 +91,21 @@ public class InventoryIssueController {
     /**
      * GET /api/issues/available
      * Nhân viên xem danh sách phiếu đang chờ được nhận (status = APPROVED, assignedTo = null)
+     * Hỗ trợ thêm: keyword, sortBy, sortDir, fromDate, toDate
      */
     @GetMapping("/available")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
     public ResponseEntity<ApiResponse<java.util.List<IssueResponseDTO>>> getAvailableIssues(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "issueDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate
     ) {
-        Page<IssueResponseDTO> result = issueService.getAvailableIssues(page, size);
+        Page<IssueResponseDTO> result = issueService.getAvailableIssuesFiltered(
+                keyword, page, size, sortBy, sortDir, fromDate, toDate);
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách phiếu chờ nhận thành công", result));
     }
 

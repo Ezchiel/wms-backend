@@ -11,6 +11,8 @@ import org.springframework.stereotype.Repository;
 import vn.edu.hcmuaf.fit.wms.entity.InventoryIssue;
 import vn.edu.hcmuaf.fit.wms.entity.enums.IssueStatus;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Repository
@@ -33,6 +35,22 @@ public interface InventoryIssueRepository extends JpaRepository<InventoryIssue, 
      */
     @Query("SELECT i FROM InventoryIssue i WHERE i.status = 'APPROVED' AND i.assignedTo IS NULL")
     Page<InventoryIssue> findAvailableIssues(Pageable pageable);
+
+    /**
+     * Lấy danh sách phiếu APPROVED chưa nhận, hỗ trợ keyword (mã phiếu/tên KH) + date range
+     */
+    @Query("SELECT i FROM InventoryIssue i LEFT JOIN i.customer c " +
+           "WHERE i.status = 'APPROVED' AND i.assignedTo IS NULL " +
+           "AND (:keyword IS NULL OR LOWER(i.issueCode) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "     OR LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:fromDate IS NULL OR CAST(i.issueDate AS date) >= :fromDate) " +
+           "AND (:toDate IS NULL OR CAST(i.issueDate AS date) <= :toDate)")
+    Page<InventoryIssue> findAvailableIssuesFiltered(
+            @Param("keyword") String keyword,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            Pageable pageable
+    );
 
     /**
      * Tìm phiếu theo ID với pessimistic write lock để tránh race condition khi claim

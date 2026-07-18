@@ -10,6 +10,7 @@ import vn.edu.hcmuaf.fit.wms.dto.CheckResponseDTO;
 import vn.edu.hcmuaf.fit.wms.entity.enums.CheckStatus;
 import vn.edu.hcmuaf.fit.wms.service.InventoryCheckService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -24,6 +25,9 @@ public class InventoryCheckController {
     public ResponseEntity<ApiResponse<List<CheckResponseDTO>>> getAllChecks(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) CheckStatus status,
+            @RequestParam(required = false) Boolean createdByMe,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
@@ -31,7 +35,7 @@ public class InventoryCheckController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy danh sách phiếu kiểm kê thành công",
-                checkService.getAllChecks(keyword, status, page, size, sortBy, sortDir)
+                checkService.getAllChecks(keyword, status, createdByMe, fromDate, toDate, page, size, sortBy, sortDir)
         ));
     }
 

@@ -15,6 +15,7 @@ import vn.edu.hcmuaf.fit.wms.repository.StorageLocationRepository;
 import vn.edu.hcmuaf.fit.wms.service.InventoryCheckService;
 import vn.edu.hcmuaf.fit.wms.service.InventoryStockService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +33,8 @@ public class InventoryCheckServiceImpl implements InventoryCheckService {
 
     @Override
     public Page<CheckResponseDTO> getAllChecks(
-            String keyword, CheckStatus status,
+            String keyword, CheckStatus status, Boolean createdByMe,
+            LocalDate fromDate, LocalDate toDate,
             int page, int size, String sortBy, String sortDir) {
 
         Sort sort = sortDir.equalsIgnoreCase("asc")
@@ -40,7 +42,14 @@ public class InventoryCheckServiceImpl implements InventoryCheckService {
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-        return checkRepository.searchChecks(keyword, status, pageable)
+        String createdBy = null;
+        if (Boolean.TRUE.equals(createdByMe)) {
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                createdBy = SecurityContextHolder.getContext().getAuthentication().getName();
+            }
+        }
+
+        return checkRepository.searchChecks(keyword, status, createdBy, fromDate, toDate, pageable)
                 .map(this::mapToDTO);
     }
 
